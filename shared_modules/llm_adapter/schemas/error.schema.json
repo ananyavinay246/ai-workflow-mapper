@@ -1,0 +1,53 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/llm_adapter/error.schema.json",
+    "title":  "LLM Adapter Error",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "error_code",
+                     "message",
+                     "retryable",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "llm_adapter"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "complete",
+                                                      "complete_structured",
+                                                      "repair_structured_output",
+                                                      "estimate_cost"
+                                                  ]
+                                     },
+                       "error_code":  {
+                                          "type":  "string",
+                                          "enum":  [
+                                                       "llm_provider_unavailable",
+                                                       "llm_timeout",
+                                                       "llm_schema_validation_failed",
+                                                       "llm_cost_limit_exceeded",
+                                                       "llm_safety_blocked"
+                                                   ]
+                                      },
+                       "message":  {
+                                       "type":  "string"
+                                   },
+                       "retryable":  {
+                                         "type":  "boolean"
+                                     },
+                       "trace_id":  {
+                                        "type":  "string"
+                                    },
+                       "details":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true
+                                   }
+                   }
+}

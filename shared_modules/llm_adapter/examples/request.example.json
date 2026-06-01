@@ -1,0 +1,14 @@
+{
+    "request_id":  "example-llm_adapter-001",
+    "module_id":  "llm_adapter",
+    "operation":  "complete",
+    "input":  {
+                  "description":  "Synthetic LLM Adapter request. Replace with a project-specific contract test case."
+              },
+    "context":  {
+                    "actor_id":  "demo-user",
+                    "tenant_id":  "demo-tenant",
+                    "environment":  "local"
+                },
+    "trace_id":  "trace-example-llm_adapter"
+}

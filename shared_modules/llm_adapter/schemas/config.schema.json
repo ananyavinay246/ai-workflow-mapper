@@ -1,0 +1,46 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/llm_adapter/config.schema.json",
+    "title":  "LLM Adapter Config",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "environment",
+                     "implementation",
+                     "settings",
+                     "security"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "llm_adapter"
+                                     },
+                       "environment":  {
+                                           "type":  "string",
+                                           "enum":  [
+                                                        "local",
+                                                        "staging",
+                                                        "production"
+                                                    ]
+                                       },
+                       "implementation":  {
+                                              "type":  "string",
+                                              "description":  "Project-local or shared implementation binding name."
+                                          },
+                       "settings":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Approved providers/models, fallback order, timeout, retry policy, budget limits, and structured-output repair policy."
+                                    },
+                       "security":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Redaction, authorization, retention, and privacy settings."
+                                    },
+                       "observability":  {
+                                             "type":  "object",
+                                             "additionalProperties":  true
+                                         }
+                   }
+}

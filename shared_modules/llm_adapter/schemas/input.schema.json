@@ -1,0 +1,48 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/llm_adapter/input.schema.json",
+    "title":  "LLM Adapter Input",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "request_id",
+                     "module_id",
+                     "operation",
+                     "input",
+                     "context",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "request_id":  {
+                                          "type":  "string",
+                                          "minLength":  1
+                                      },
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "llm_adapter"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "complete",
+                                                      "complete_structured",
+                                                      "repair_structured_output",
+                                                      "estimate_cost"
+                                                  ]
+                                     },
+                       "input":  {
+                                     "type":  "object",
+                                     "additionalProperties":  true,
+                                     "description":  "Prompt messages, model constraints, structured-output schema, safety context, timeout, retry policy, and cost budget."
+                                 },
+                       "context":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true,
+                                       "description":  "Actor, tenant/project, trace, and policy context needed by the module."
+                                   },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

@@ -1,0 +1,16 @@
+{
+    "module_id":  "llm_adapter",
+    "operation":  "complete",
+    "status":  "succeeded",
+    "result":  {
+                   "description":  "Synthetic LLM Adapter response. Replace with concrete expected output in project tests."
+               },
+    "warnings":  [
+
+                 ],
+    "metadata":  {
+                     "implementation":  "project-local",
+                     "contract_version":  "0.1.0"
+                 },
+    "trace_id":  "trace-example-llm_adapter"
+}

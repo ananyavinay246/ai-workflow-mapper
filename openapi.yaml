@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: AI Workflow Mapper API
+  version: 0.1.0
+  description: Baseline production API contract for AI Workflow Mapper. The primary workflow is job-based: submit work with POST /jobs, store durable status, process asynchronously or in a bounded processor, and poll with GET /jobs/{job_id}. Domain-specific endpoints may extend this file, but implementations must keep these job and health contracts stable.
+servers:
+  - url: http://localhost:8000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+  /jobs:
+    post:
+      summary: Submit an AI Workflow Mapper job
+      description: Validates the request, creates a durable job record, and returns 202 Accepted with a job_id and accepted status. The implementation may process locally during early development, but the public contract remains job-based.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas/input.schema.json"
+      responses:
+        "202":
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/output.schema.json"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/errors.schema.json"
+  /jobs/{job_id}:
+    get:
+      summary: Fetch job status or result
+      description: Returns the current job state. The result may be null while the job is accepted or running, and must be populated or paired with a structured error once the job reaches a terminal state.
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job result or current status
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/output.schema.json"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/errors.schema.json"

@@ -1,0 +1,16 @@
+{
+    "module_id":  "report_renderer",
+    "operation":  "render_report",
+    "status":  "succeeded",
+    "result":  {
+                   "description":  "Synthetic Report Renderer response. Replace with concrete expected output in project tests."
+               },
+    "warnings":  [
+
+                 ],
+    "metadata":  {
+                     "implementation":  "project-local",
+                     "contract_version":  "0.1.0"
+                 },
+    "trace_id":  "trace-example-report_renderer"
+}

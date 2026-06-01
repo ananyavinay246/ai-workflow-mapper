@@ -1,0 +1,15 @@
+{
+    "request_id":  "example-ai_workflow_mapper-001",
+    "tool_id":  "ai_workflow_mapper",
+    "input":  {
+                  "description":  "Example request for AI Workflow Mapper. Replace or extend with domain-specific fields during implementation planning."
+              },
+    "options":  {
+                    "output_format":  "json",
+                    "mode":  "standard"
+                },
+    "metadata":  {
+                     "submitted_by":  "demo-user",
+                     "synthetic":  true
+                 }
+}

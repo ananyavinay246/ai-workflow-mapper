@@ -1,0 +1,60 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/document_loader/output.schema.json",
+    "title":  "Document Loader Output",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "status",
+                     "result",
+                     "warnings",
+                     "metadata",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "document_loader"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "detect_file_type",
+                                                      "load_document",
+                                                      "extract_text",
+                                                      "extract_metadata"
+                                                  ]
+                                     },
+                       "status":  {
+                                      "type":  "string",
+                                      "enum":  [
+                                                   "succeeded",
+                                                   "denied",
+                                                   "failed",
+                                                   "needs_review"
+                                               ]
+                                  },
+                       "result":  {
+                                      "type":  "object",
+                                      "additionalProperties":  true,
+                                      "description":  "Normalized document object with text, pages/sections, metadata, source spans, warnings, and parser provenance."
+                                  },
+                       "warnings":  {
+                                        "type":  "array",
+                                        "items":  {
+                                                      "type":  "string"
+                                                  }
+                                    },
+                       "metadata":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Implementation, timing, version, and provenance metadata safe to expose to product code."
+                                    },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

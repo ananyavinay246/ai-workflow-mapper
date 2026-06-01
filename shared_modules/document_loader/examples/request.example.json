@@ -1,0 +1,14 @@
+{
+    "request_id":  "example-document_loader-001",
+    "module_id":  "document_loader",
+    "operation":  "detect_file_type",
+    "input":  {
+                  "description":  "Synthetic Document Loader request. Replace with a project-specific contract test case."
+              },
+    "context":  {
+                    "actor_id":  "demo-user",
+                    "tenant_id":  "demo-tenant",
+                    "environment":  "local"
+                },
+    "trace_id":  "trace-example-document_loader"
+}

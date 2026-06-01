@@ -1,0 +1,46 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/report_renderer/config.schema.json",
+    "title":  "Report Renderer Config",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "environment",
+                     "implementation",
+                     "settings",
+                     "security"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "report_renderer"
+                                     },
+                       "environment":  {
+                                           "type":  "string",
+                                           "enum":  [
+                                                        "local",
+                                                        "staging",
+                                                        "production"
+                                                    ]
+                                       },
+                       "implementation":  {
+                                              "type":  "string",
+                                              "description":  "Project-local or shared implementation binding name."
+                                          },
+                       "settings":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Template registry, allowed output formats, artifact storage binding, sanitization policy, and rendering timeout."
+                                    },
+                       "security":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Redaction, authorization, retention, and privacy settings."
+                                    },
+                       "observability":  {
+                                             "type":  "object",
+                                             "additionalProperties":  true
+                                         }
+                   }
+}

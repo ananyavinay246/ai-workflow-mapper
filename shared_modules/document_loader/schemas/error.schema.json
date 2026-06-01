@@ -1,0 +1,52 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/document_loader/error.schema.json",
+    "title":  "Document Loader Error",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "error_code",
+                     "message",
+                     "retryable",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "document_loader"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "detect_file_type",
+                                                      "load_document",
+                                                      "extract_text",
+                                                      "extract_metadata"
+                                                  ]
+                                     },
+                       "error_code":  {
+                                          "type":  "string",
+                                          "enum":  [
+                                                       "document_unsupported_type",
+                                                       "document_too_large",
+                                                       "document_parse_failed",
+                                                       "document_password_required"
+                                                   ]
+                                      },
+                       "message":  {
+                                       "type":  "string"
+                                   },
+                       "retryable":  {
+                                         "type":  "boolean"
+                                     },
+                       "trace_id":  {
+                                        "type":  "string"
+                                    },
+                       "details":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true
+                                   }
+                   }
+}

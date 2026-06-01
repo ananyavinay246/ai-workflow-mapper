@@ -1,0 +1,14 @@
+{
+    "request_id":  "example-evaluation_harness-001",
+    "module_id":  "evaluation_harness",
+    "operation":  "load_cases",
+    "input":  {
+                  "description":  "Synthetic Evaluation Harness request. Replace with a project-specific contract test case."
+              },
+    "context":  {
+                    "actor_id":  "demo-user",
+                    "tenant_id":  "demo-tenant",
+                    "environment":  "local"
+                },
+    "trace_id":  "trace-example-evaluation_harness"
+}

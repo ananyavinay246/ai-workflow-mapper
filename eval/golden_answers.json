@@ -1,0 +1,7 @@
+{
+    "tool_id":  "ai_workflow_mapper",
+    "cases":  [
+
+              ],
+    "notes":  "Populate with golden fixture ids, expected outputs, and rubric scores before final implementation acceptance."
+}

@@ -1,0 +1,49 @@
+[
+    {
+        "module_id":  "document_loader",
+        "name":  "Document Loader",
+        "responsibility":  "Convert supported files into normalized text, metadata, and extracted structured elements.",
+        "operations":  [
+                           "detect_file_type",
+                           "load_document",
+                           "extract_text",
+                           "extract_metadata"
+                       ],
+        "notes":  "Parser quirks stay inside this module."
+    },
+    {
+        "module_id":  "llm_adapter",
+        "name":  "LLM Adapter",
+        "responsibility":  "Route model calls, enforce structured output, retries, timeouts, cost limits, and provider fallback.",
+        "operations":  [
+                           "complete",
+                           "complete_structured",
+                           "repair_structured_output",
+                           "estimate_cost"
+                       ],
+        "notes":  "Product code should not call OpenAI, Anthropic, or other providers directly."
+    },
+    {
+        "module_id":  "report_renderer",
+        "name":  "Report Renderer",
+        "responsibility":  "Render validated structured data into Markdown, HTML, DOCX, PDF, or other outputs.",
+        "operations":  [
+                           "render_report",
+                           "export_artifact",
+                           "validate_template"
+                       ],
+        "notes":  "Rendering should not own domain analysis."
+    },
+    {
+        "module_id":  "evaluation_harness",
+        "name":  "Evaluation Harness",
+        "responsibility":  "Load fixtures, run scenarios, validate outputs, score rubrics, and emit eval reports.",
+        "operations":  [
+                           "load_cases",
+                           "run_eval",
+                           "score_results",
+                           "emit_report"
+                       ],
+        "notes":  "Should be repeatable in CI."
+    }
+]

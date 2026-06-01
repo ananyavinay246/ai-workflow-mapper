@@ -1,0 +1,46 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/document_loader/config.schema.json",
+    "title":  "Document Loader Config",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "environment",
+                     "implementation",
+                     "settings",
+                     "security"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "document_loader"
+                                     },
+                       "environment":  {
+                                           "type":  "string",
+                                           "enum":  [
+                                                        "local",
+                                                        "staging",
+                                                        "production"
+                                                    ]
+                                       },
+                       "implementation":  {
+                                              "type":  "string",
+                                              "description":  "Project-local or shared implementation binding name."
+                                          },
+                       "settings":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Supported file types, size limits, OCR policy, parser selection, and metadata retention rules."
+                                    },
+                       "security":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Redaction, authorization, retention, and privacy settings."
+                                    },
+                       "observability":  {
+                                             "type":  "object",
+                                             "additionalProperties":  true
+                                         }
+                   }
+}

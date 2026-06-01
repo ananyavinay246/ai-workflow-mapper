@@ -1,0 +1,48 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/document_loader/input.schema.json",
+    "title":  "Document Loader Input",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "request_id",
+                     "module_id",
+                     "operation",
+                     "input",
+                     "context",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "request_id":  {
+                                          "type":  "string",
+                                          "minLength":  1
+                                      },
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "document_loader"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "detect_file_type",
+                                                      "load_document",
+                                                      "extract_text",
+                                                      "extract_metadata"
+                                                  ]
+                                     },
+                       "input":  {
+                                     "type":  "object",
+                                     "additionalProperties":  true,
+                                     "description":  "File reference or bytes, filename, MIME type, caller-supplied metadata, parser options, and safety scan result."
+                                 },
+                       "context":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true,
+                                       "description":  "Actor, tenant/project, trace, and policy context needed by the module."
+                                   },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

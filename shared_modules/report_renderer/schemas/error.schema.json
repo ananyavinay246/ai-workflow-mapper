@@ -1,0 +1,51 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/report_renderer/error.schema.json",
+    "title":  "Report Renderer Error",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "error_code",
+                     "message",
+                     "retryable",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "report_renderer"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "render_report",
+                                                      "export_artifact",
+                                                      "validate_template"
+                                                  ]
+                                     },
+                       "error_code":  {
+                                          "type":  "string",
+                                          "enum":  [
+                                                       "template_not_found",
+                                                       "render_failed",
+                                                       "format_unsupported",
+                                                       "artifact_write_failed"
+                                                   ]
+                                      },
+                       "message":  {
+                                       "type":  "string"
+                                   },
+                       "retryable":  {
+                                         "type":  "boolean"
+                                     },
+                       "trace_id":  {
+                                        "type":  "string"
+                                    },
+                       "details":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true
+                                   }
+                   }
+}

@@ -1,0 +1,16 @@
+{
+    "module_id":  "document_loader",
+    "operation":  "detect_file_type",
+    "status":  "succeeded",
+    "result":  {
+                   "description":  "Synthetic Document Loader response. Replace with concrete expected output in project tests."
+               },
+    "warnings":  [
+
+                 ],
+    "metadata":  {
+                     "implementation":  "project-local",
+                     "contract_version":  "0.1.0"
+                 },
+    "trace_id":  "trace-example-document_loader"
+}

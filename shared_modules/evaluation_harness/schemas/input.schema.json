@@ -1,0 +1,48 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/evaluation_harness/input.schema.json",
+    "title":  "Evaluation Harness Input",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "request_id",
+                     "module_id",
+                     "operation",
+                     "input",
+                     "context",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "request_id":  {
+                                          "type":  "string",
+                                          "minLength":  1
+                                      },
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "evaluation_harness"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "load_cases",
+                                                      "run_eval",
+                                                      "score_results",
+                                                      "emit_report"
+                                                  ]
+                                     },
+                       "input":  {
+                                     "type":  "object",
+                                     "additionalProperties":  true,
+                                     "description":  "Fixture directory, golden answer file, tool runner command/API binding, rubric, thresholds, and run metadata."
+                                 },
+                       "context":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true,
+                                       "description":  "Actor, tenant/project, trace, and policy context needed by the module."
+                                   },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

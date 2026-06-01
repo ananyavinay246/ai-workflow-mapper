@@ -1,0 +1,15 @@
+{
+    "request_id":  "demo-ai_workflow_mapper-001",
+    "tool_id":  "ai_workflow_mapper",
+    "input":  {
+                  "description":  "Minimal AI Workflow Mapper input fixture. Replace with a domain-specific fixture before implementation."
+              },
+    "options":  {
+                    "output_format":  "json",
+                    "mode":  "standard"
+                },
+    "metadata":  {
+                     "source":  "fixtures/simple",
+                     "synthetic":  true
+                 }
+}

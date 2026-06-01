@@ -1,0 +1,59 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/report_renderer/output.schema.json",
+    "title":  "Report Renderer Output",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "status",
+                     "result",
+                     "warnings",
+                     "metadata",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "report_renderer"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "render_report",
+                                                      "export_artifact",
+                                                      "validate_template"
+                                                  ]
+                                     },
+                       "status":  {
+                                      "type":  "string",
+                                      "enum":  [
+                                                   "succeeded",
+                                                   "denied",
+                                                   "failed",
+                                                   "needs_review"
+                                               ]
+                                  },
+                       "result":  {
+                                      "type":  "object",
+                                      "additionalProperties":  true,
+                                      "description":  "Rendered content or artifact reference, format metadata, warnings, and template provenance."
+                                  },
+                       "warnings":  {
+                                        "type":  "array",
+                                        "items":  {
+                                                      "type":  "string"
+                                                  }
+                                    },
+                       "metadata":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Implementation, timing, version, and provenance metadata safe to expose to product code."
+                                    },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

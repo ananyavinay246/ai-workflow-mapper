@@ -1,0 +1,31 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/ai_workflow_mapper/errors.schema.json",
+    "title":  "AI Workflow Mapper Error",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "error_code",
+                     "message",
+                     "retryable",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "error_code":  {
+                                          "type":  "string"
+                                      },
+                       "message":  {
+                                       "type":  "string"
+                                   },
+                       "retryable":  {
+                                         "type":  "boolean"
+                                     },
+                       "trace_id":  {
+                                        "type":  "string"
+                                    },
+                       "details":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true
+                                   }
+                   }
+}

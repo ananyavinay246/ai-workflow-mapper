@@ -1,0 +1,60 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/llm_adapter/output.schema.json",
+    "title":  "LLM Adapter Output",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "status",
+                     "result",
+                     "warnings",
+                     "metadata",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "llm_adapter"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "complete",
+                                                      "complete_structured",
+                                                      "repair_structured_output",
+                                                      "estimate_cost"
+                                                  ]
+                                     },
+                       "status":  {
+                                      "type":  "string",
+                                      "enum":  [
+                                                   "succeeded",
+                                                   "denied",
+                                                   "failed",
+                                                   "needs_review"
+                                               ]
+                                  },
+                       "result":  {
+                                      "type":  "object",
+                                      "additionalProperties":  true,
+                                      "description":  "Model response, validated structured object when requested, token/cost metadata, provider/model provenance, warnings, and refusal/safety signals."
+                                  },
+                       "warnings":  {
+                                        "type":  "array",
+                                        "items":  {
+                                                      "type":  "string"
+                                                  }
+                                    },
+                       "metadata":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Implementation, timing, version, and provenance metadata safe to expose to product code."
+                                    },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

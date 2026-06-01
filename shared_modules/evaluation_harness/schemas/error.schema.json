@@ -1,0 +1,52 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/evaluation_harness/error.schema.json",
+    "title":  "Evaluation Harness Error",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "error_code",
+                     "message",
+                     "retryable",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "evaluation_harness"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "load_cases",
+                                                      "run_eval",
+                                                      "score_results",
+                                                      "emit_report"
+                                                  ]
+                                     },
+                       "error_code":  {
+                                          "type":  "string",
+                                          "enum":  [
+                                                       "eval_fixture_invalid",
+                                                       "eval_runner_failed",
+                                                       "eval_threshold_failed",
+                                                       "eval_report_write_failed"
+                                                   ]
+                                      },
+                       "message":  {
+                                       "type":  "string"
+                                   },
+                       "retryable":  {
+                                         "type":  "boolean"
+                                     },
+                       "trace_id":  {
+                                        "type":  "string"
+                                    },
+                       "details":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true
+                                   }
+                   }
+}

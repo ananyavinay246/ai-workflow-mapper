@@ -1,0 +1,46 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/evaluation_harness/config.schema.json",
+    "title":  "Evaluation Harness Config",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "environment",
+                     "implementation",
+                     "settings",
+                     "security"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "evaluation_harness"
+                                     },
+                       "environment":  {
+                                           "type":  "string",
+                                           "enum":  [
+                                                        "local",
+                                                        "staging",
+                                                        "production"
+                                                    ]
+                                       },
+                       "implementation":  {
+                                              "type":  "string",
+                                              "description":  "Project-local or shared implementation binding name."
+                                          },
+                       "settings":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Fixture paths, scoring rubric, pass thresholds, timeout, parallelism, and artifact output path."
+                                    },
+                       "security":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Redaction, authorization, retention, and privacy settings."
+                                    },
+                       "observability":  {
+                                             "type":  "object",
+                                             "additionalProperties":  true
+                                         }
+                   }
+}

@@ -1,0 +1,14 @@
+{
+    "request_id":  "example-report_renderer-001",
+    "module_id":  "report_renderer",
+    "operation":  "render_report",
+    "input":  {
+                  "description":  "Synthetic Report Renderer request. Replace with a project-specific contract test case."
+              },
+    "context":  {
+                    "actor_id":  "demo-user",
+                    "tenant_id":  "demo-tenant",
+                    "environment":  "local"
+                },
+    "trace_id":  "trace-example-report_renderer"
+}

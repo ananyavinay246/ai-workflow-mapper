@@ -1,0 +1,60 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/evaluation_harness/output.schema.json",
+    "title":  "Evaluation Harness Output",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "module_id",
+                     "operation",
+                     "status",
+                     "result",
+                     "warnings",
+                     "metadata",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "evaluation_harness"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "load_cases",
+                                                      "run_eval",
+                                                      "score_results",
+                                                      "emit_report"
+                                                  ]
+                                     },
+                       "status":  {
+                                      "type":  "string",
+                                      "enum":  [
+                                                   "succeeded",
+                                                   "denied",
+                                                   "failed",
+                                                   "needs_review"
+                                               ]
+                                  },
+                       "result":  {
+                                      "type":  "object",
+                                      "additionalProperties":  true,
+                                      "description":  "Case results, aggregate scores, schema validation results, failure details, and evaluation report artifact."
+                                  },
+                       "warnings":  {
+                                        "type":  "array",
+                                        "items":  {
+                                                      "type":  "string"
+                                                  }
+                                    },
+                       "metadata":  {
+                                        "type":  "object",
+                                        "additionalProperties":  true,
+                                        "description":  "Implementation, timing, version, and provenance metadata safe to expose to product code."
+                                    },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}

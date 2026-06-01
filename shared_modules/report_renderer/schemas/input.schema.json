@@ -1,0 +1,47 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://spec-docs.local/shared_modules/report_renderer/input.schema.json",
+    "title":  "Report Renderer Input",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "request_id",
+                     "module_id",
+                     "operation",
+                     "input",
+                     "context",
+                     "trace_id"
+                 ],
+    "properties":  {
+                       "request_id":  {
+                                          "type":  "string",
+                                          "minLength":  1
+                                      },
+                       "module_id":  {
+                                         "type":  "string",
+                                         "const":  "report_renderer"
+                                     },
+                       "operation":  {
+                                         "type":  "string",
+                                         "enum":  [
+                                                      "render_report",
+                                                      "export_artifact",
+                                                      "validate_template"
+                                                  ]
+                                     },
+                       "input":  {
+                                     "type":  "object",
+                                     "additionalProperties":  true,
+                                     "description":  "Validated structured data, template id/version, output format, asset references, and rendering options."
+                                 },
+                       "context":  {
+                                       "type":  "object",
+                                       "additionalProperties":  true,
+                                       "description":  "Actor, tenant/project, trace, and policy context needed by the module."
+                                   },
+                       "trace_id":  {
+                                        "type":  "string",
+                                        "minLength":  1
+                                    }
+                   }
+}
