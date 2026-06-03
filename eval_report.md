@@ -1,9 +1,9 @@
 # Evaluation Report
 
-**Run ID:** a681e577-a7c5-4720-b560-6d0493c63a5c
+**Run ID:** 247f1e59-fb67-4378-bbae-16400e5ea943
 **Fixtures:** fixtures/golden
 **Rubric:** eval/rubric.md
-**Generated:** 2026-06-02T15:27:59.375474+00:00
+**Generated:** 2026-06-03T14:45:43.246389+00:00
 
 ---
 

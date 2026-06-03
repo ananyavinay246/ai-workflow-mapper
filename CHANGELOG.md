@@ -11,4 +11,9 @@
 - [8:48 PM] Added `AGENTS.md` and templated `pyproject.toml` from the README.
 
 6/2/2026:
+
 - [2:48 PM] Implemented all the `shared_modules/` features: `document_loader`, `evaluation_harness`, `llm_adapter`, `report_renderer`. Ensured that all of the code validates `schemas/`, and check `acceptance.md`.
+
+6/3/2026:
+
+- [10:32 AM] Implemented the API under `src/ai_workflow_mapper/api` according to the spec. 
