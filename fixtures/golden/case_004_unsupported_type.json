@@ -1,0 +1,20 @@
+{
+  "case_id": "case_004_unsupported_type",
+  "request": {
+    "request_id": "req-case-004",
+    "module_id": "document_loader",
+    "operation": "detect_file_type",
+    "input": {"filename": "archive.zip"},
+    "context": {"actor_id": "eval", "tenant_id": "eval", "environment": "local"},
+    "trace_id": "trace-case-004"
+  },
+  "expected_status": "succeeded",
+  "rubric_scores": {
+    "contract_validity": 5.0,
+    "task_success": 4.5,
+    "evidence_quality": 4.0,
+    "safety": 5.0,
+    "reliability": 5.0,
+    "operator_clarity": 4.0
+  }
+}

@@ -1,0 +1,89 @@
+# Workflow Analysis Report
+
+**Generated:** {{ metadata.generated_at | default("N/A") }}
+**Job ID:** {{ metadata.job_id | default("N/A") }}
+
+---
+
+## Executive Summary
+
+{{ data.executive_summary | default("No summary provided.") }}
+
+---
+
+## Process Inventory
+
+{% if data.processes %}
+| # | Process Name | Owner | Duration | Frequency |
+|---|-------------|-------|----------|-----------|
+{% for p in data.processes %}| {{ loop.index }} | {{ p.name }} | {{ p.owner | default("—") }} | {{ p.duration | default("—") }} | {{ p.frequency | default("—") }} |
+{% endfor %}
+{% else %}
+_No processes identified._
+{% endif %}
+
+---
+
+## Bottleneck Analysis
+
+{% if data.bottlenecks %}
+{% for b in data.bottlenecks %}
+### {{ b.name }} — Severity: {{ b.severity }}
+
+{{ b.description }}
+
+**Impact:** {{ b.impact | default("Unknown") }}
+
+{% endfor %}
+{% else %}
+_No bottlenecks detected._
+{% endif %}
+
+---
+
+## Redundancy Analysis
+
+{% if data.redundancies %}
+{% for r in data.redundancies %}
+### {{ r.name }}
+
+{{ r.description }}
+
+**Affected steps:** {{ r.affected_steps | join(", ") | default("N/A") }}
+
+{% endfor %}
+{% else %}
+_No redundancies detected._
+{% endif %}
+
+---
+
+## Automation Opportunity Matrix
+
+{% if data.automation_opportunities %}
+| Opportunity | Effort | ROI | Priority |
+|-------------|--------|-----|----------|
+{% for a in data.automation_opportunities %}| {{ a.name }} | {{ a.effort | default("—") }} | {{ a.roi | default("—") }} | {{ a.priority | default("—") }} |
+{% endfor %}
+{% else %}
+_No automation opportunities identified._
+{% endif %}
+
+---
+
+## Recommended Next Steps
+
+{% if data.next_steps %}
+{% for step in data.next_steps %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+{% else %}
+_No recommendations available._
+{% endif %}
+
+---
+
+## Report Metadata
+
+- **Template:** {{ template_id }} v{{ template_version }}
+- **Sections:** executive_summary, process_inventory, bottleneck_analysis, redundancy_analysis, automation_matrix, next_steps

@@ -1,0 +1,40 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Pytest & ruff
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.suo
+*.user
+.claude/
+
+# Generated outputs (optional — only if you don't want to commit them)
+outputs/
+*.pdf
+*.docx

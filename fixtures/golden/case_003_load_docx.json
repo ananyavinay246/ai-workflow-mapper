@@ -1,0 +1,20 @@
+{
+  "case_id": "case_003_load_docx",
+  "request": {
+    "request_id": "req-case-003",
+    "module_id": "document_loader",
+    "operation": "detect_file_type",
+    "input": {"filename": "onboarding_process.docx"},
+    "context": {"actor_id": "eval", "tenant_id": "eval", "environment": "local"},
+    "trace_id": "trace-case-003"
+  },
+  "expected_status": "succeeded",
+  "rubric_scores": {
+    "contract_validity": 5.0,
+    "task_success": 5.0,
+    "evidence_quality": 4.0,
+    "safety": 5.0,
+    "reliability": 5.0,
+    "operator_clarity": 4.0
+  }
+}
