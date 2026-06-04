@@ -297,6 +297,121 @@ def test_extract_text_docx_happy():
     assert resp.result["parser"] == "python-docx"
 
 
+def test_extract_text_docx_table():
+    """Table cell text is extracted and rows are pipe-separated."""
+    try:
+        import docx
+    except ImportError:
+        pytest.skip("python-docx not installed")
+
+    doc = docx.Document()
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "step"
+    table.cell(0, 1).text = "owner"
+    table.cell(1, 0).text = "Submit"
+    table.cell(1, 1).text = "HR"
+    buf = BytesIO()
+    doc.save(buf)
+
+    resp = _make_loader().handle(
+        _make_request(
+            DocumentLoaderOperation.extract_text,
+            {"filename": "sop.docx", "content_bytes_b64": _b64_bytes(buf.getvalue())},
+        )
+    )
+    assert resp.status.value == "succeeded"
+    assert "Submit" in resp.result["text"]
+    assert "HR" in resp.result["text"]
+    assert "Submit | HR" in resp.result["text"]
+
+
+def test_extract_text_docx_header_footer():
+    """Header and footer paragraphs appear in extracted text."""
+    try:
+        import docx
+    except ImportError:
+        pytest.skip("python-docx not installed")
+
+    doc = docx.Document()
+    doc.add_paragraph("Body paragraph")
+    section = doc.sections[0]
+    section.header.paragraphs[0].text = "CONFIDENTIAL"
+    section.footer.paragraphs[0].text = "Page 1"
+    buf = BytesIO()
+    doc.save(buf)
+
+    resp = _make_loader().handle(
+        _make_request(
+            DocumentLoaderOperation.extract_text,
+            {"filename": "sop.docx", "content_bytes_b64": _b64_bytes(buf.getvalue())},
+        )
+    )
+    assert resp.status.value == "succeeded"
+    text = resp.result["text"]
+    assert "CONFIDENTIAL" in text
+    assert "Page 1" in text
+    assert "Body paragraph" in text
+
+
+def test_extract_text_docx_body_order():
+    """Paragraph before a table appears before the table row in extracted text."""
+    try:
+        import docx
+    except ImportError:
+        pytest.skip("python-docx not installed")
+
+    doc = docx.Document()
+    doc.add_paragraph("Intro paragraph")
+    table = doc.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "Step"
+    table.cell(0, 1).text = "Owner"
+    doc.add_paragraph("Closing paragraph")
+    buf = BytesIO()
+    doc.save(buf)
+
+    resp = _make_loader().handle(
+        _make_request(
+            DocumentLoaderOperation.extract_text,
+            {"filename": "sop.docx", "content_bytes_b64": _b64_bytes(buf.getvalue())},
+        )
+    )
+    assert resp.status.value == "succeeded"
+    text = resp.result["text"]
+    assert text.index("Intro paragraph") < text.index("Step")
+    assert text.index("Step") < text.index("Closing paragraph")
+
+
+def test_extract_text_docx_empty_cells_skipped():
+    """Rows with all-empty cells are omitted; rows with some empty cells still appear."""
+    try:
+        import docx
+    except ImportError:
+        pytest.skip("python-docx not installed")
+
+    doc = docx.Document()
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Submit"
+    table.cell(0, 1).text = ""   # empty second cell
+    # row 1: both cells empty — should be omitted
+    table.cell(1, 0).text = ""
+    table.cell(1, 1).text = ""
+    buf = BytesIO()
+    doc.save(buf)
+
+    resp = _make_loader().handle(
+        _make_request(
+            DocumentLoaderOperation.extract_text,
+            {"filename": "sop.docx", "content_bytes_b64": _b64_bytes(buf.getvalue())},
+        )
+    )
+    assert resp.status.value == "succeeded"
+    text = resp.result["text"]
+    assert "Submit" in text
+    # only one row line should appear (the all-empty row is dropped)
+    pipe_lines = [ln for ln in text.splitlines() if "|" in ln]
+    assert len(pipe_lines) == 1
+
+
 # ---------------------------------------------------------------------------
 # extract_metadata
 # ---------------------------------------------------------------------------

@@ -1,18 +1,33 @@
-"""Stub job processor — seam for the real workflow analysis pipeline."""
+"""Job processor — wires the workflow pipeline into the API layer."""
 
 from typing import Any
+
+from ai_workflow_mapper.platform.contracts.document_loader import DocumentLoaderConfig
+from ai_workflow_mapper.platform.local.document_loader import LocalDocumentLoader
+from ai_workflow_mapper.workflow.domain import WorkflowInput
+from ai_workflow_mapper.workflow.normalizer import InputNormalizer
 
 from .models import JobInput
 
 
 def process(job_input: JobInput) -> dict[str, Any]:
-    """Process a workflow mapper job and return the result dict.
+    """Normalize the caller's input documents.
 
-    This is a stub. Wire up document_loader → llm_adapter → report_renderer here
-    in the next implementation slice.
+    Next slice: pass normalized documents to the Process Extractor.
     """
-    documents = job_input.input.get("documents", [])
+    workflow_input = WorkflowInput.model_validate(job_input.input)
+    loader = LocalDocumentLoader(
+        DocumentLoaderConfig(
+            environment="local",
+            implementation="local",
+            settings={},
+            security={},
+        )
+    )
+    result = InputNormalizer(loader).normalize(workflow_input, trace_id=job_input.request_id)
     return {
-        "summary": "Analysis stub — workflow pipeline not yet wired",
-        "documents_processed": len(documents),
+        "normalized_documents": len(result.documents),
+        "skipped_documents": len(result.skipped),
+        "skipped": result.skipped,
+        "warnings": result.warnings,
     }

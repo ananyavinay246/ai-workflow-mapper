@@ -35,6 +35,7 @@ Thumbs.db
 .claude/
 
 # Generated outputs (optional — only if you don't want to commit them)
+inputs/
 outputs/
 *.pdf
 *.docx

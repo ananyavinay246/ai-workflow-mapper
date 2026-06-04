@@ -276,8 +276,49 @@ class LocalDocumentLoader:
                 )
             ) from exc
 
-        paragraphs = [p.text for p in doc.paragraphs]
-        text = "\n".join(paragraphs)
+        _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+        def _cell_text(cell_el: Any) -> str:
+            return "".join(n.text or "" for n in cell_el.iter(f"{{{_W}}}t")).strip()
+
+        # Headers (prepended; skip sections linked to previous to avoid duplicates)
+        header_lines: list[str] = []
+        for section in doc.sections:
+            if not section.header.is_linked_to_previous:
+                for para in section.header.paragraphs:
+                    if para.text.strip():
+                        header_lines.append(para.text)
+
+        # Body in document order — paragraphs and tables interleaved
+        body_blocks: list[str] = []
+        for element in doc.element.body:
+            local = element.tag.split("}")[-1] if "}" in element.tag else element.tag
+            if local == "p":
+                text = "".join(n.text or "" for n in element.iter(f"{{{_W}}}t"))
+                if text.strip():
+                    body_blocks.append(text)
+            elif local == "tbl":
+                for row in element.findall(f".//{{{_W}}}tr"):
+                    cells = [_cell_text(c) for c in row.findall(f"{{{_W}}}tc")]
+                    if any(cells):
+                        body_blocks.append(" | ".join(cells))
+
+        # Footers (appended; same linked-section logic)
+        footer_lines: list[str] = []
+        for section in doc.sections:
+            if not section.footer.is_linked_to_previous:
+                for para in section.footer.paragraphs:
+                    if para.text.strip():
+                        footer_lines.append(para.text)
+
+        parts: list[str] = []
+        if header_lines:
+            parts.append("\n".join(header_lines))
+        parts.extend(body_blocks)
+        if footer_lines:
+            parts.append("\n".join(footer_lines))
+        text = "\n".join(parts)
+
         return {"text": text, "char_count": len(text), "parser": "python-docx"}, []
 
     def _extract_metadata(
@@ -322,6 +363,7 @@ class LocalDocumentLoader:
                 doc = docx.Document(BytesIO(raw_bytes))
                 props = doc.core_properties
                 meta["paragraph_count"] = len(doc.paragraphs)
+                meta["table_count"] = len(doc.tables)
                 meta["core_properties"] = {
                     "title": props.title or "",
                     "author": props.author or "",

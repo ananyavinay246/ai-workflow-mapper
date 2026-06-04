@@ -17,3 +17,4 @@
 6/3/2026:
 
 - [10:32 AM] Implemented the API under `src/ai_workflow_mapper/api` according to the spec. 
+- [5:35 PM] Implemented the Input Normalizer in file `normalizer.py`. The file pushes documents with .txt, .md, .docx, .json, and .pdf to `platform/local/document_loader.py`.
