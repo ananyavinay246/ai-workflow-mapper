@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/job_error_result.schema.json",
+  "title": "Job Error Result",
+  "description": "Result payload when status is failed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

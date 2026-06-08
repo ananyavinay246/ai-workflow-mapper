@@ -140,9 +140,11 @@ def test_normalize_docx():
     d = docx.Document()
     d.add_paragraph("Approve the request")
     d.add_paragraph("Send to manager")
-    table = d.add_table(rows=1, cols=2)
-    table.cell(0, 0).text = "Reviewer"
-    table.cell(0, 1).text = "Manager"
+    table = d.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "step"
+    table.cell(0, 1).text = "owner"
+    table.cell(1, 0).text = "Submit"
+    table.cell(1, 1).text = "HR"
     buf = BytesIO()
     d.save(buf)
     raw = buf.getvalue()
@@ -152,8 +154,37 @@ def test_normalize_docx():
     doc = result.documents[0]
     assert doc.parser == "python-docx"
     assert "Approve" in doc.text
-    assert "Reviewer" in doc.text
-    assert "Manager" in doc.text
+    assert "Submit" in doc.text
+    assert "HR" in doc.text
+    assert "| --- | --- |" in doc.text
+    assert doc.metadata.get("cleaning", {}).get("tables_converted", 0) >= 1
+
+
+def test_normalize_txt_cleaning_footer_and_table():
+    raw = (
+        "CONFIDENTIAL\n"
+        "Process steps\n"
+        "step | owner\n"
+        "Submit | HR\n"
+        "Page 1 of 1\n"
+    )
+    result = _norm(_make_normalizer(), _make_doc("process.txt", raw))
+    assert len(result.documents) == 1
+    doc = result.documents[0]
+    assert "Page 1 of 1" not in doc.text
+    assert "| step | owner |" in doc.text
+    assert "| Submit | HR |" in doc.text
+    assert doc.char_count == len(doc.text)
+    assert "cleaning" in doc.metadata
+
+
+def test_normalize_json_preserves_structure():
+    obj = {"steps": ["Approve", "Review"], "owner": "ops"}
+    result = _norm(_make_normalizer(), _make_doc("export.json", json.dumps(obj)))
+    doc = result.documents[0]
+    parsed = json.loads(doc.text)
+    assert parsed["steps"] == ["Approve", "Review"]
+    assert "| --- |" not in doc.text
 
 
 # ---------------------------------------------------------------------------

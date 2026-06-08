@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/diagram_artifact.schema.json",
+  "title": "Diagram Artifact",
+  "description": "Generated diagram or report file reference in job output artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path", "type"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Relative path or storage key for the artifact."
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Artifact kind, e.g. diagram, report."
+    },
+    "description": { "type": "string" },
+    "format": {
+      "type": "string",
+      "enum": ["mermaid", "bpmn_xml", "drawio_xml", "svg", "png", "markdown", "docx", "pdf"]
+    },
+    "diagram_type": {
+      "type": "string",
+      "enum": ["flowchart", "swimlane", "value_stream", "entity_relationship"]
+    },
+    "mime_type": { "type": "string" },
+    "storage_uri": {
+      "type": "string",
+      "description": "URI when artifact is stored outside the HTTP response body."
+    },
+    "content": {
+      "type": "string",
+      "description": "Inline payload for small text artifacts (e.g. Mermaid source)."
+    },
+    "checksum": { "type": "string" }
+  }
+}

@@ -23,7 +23,11 @@ This is the starter workspace for the AI Workflow Mapper build. Treat the includ
 Use cross-platform Python commands so the project works on Windows and macOS without requiring Bash, GNU Make, or Docker. Update these commands if the implementation uses a different package layout.
 
 - Install: `python -m pip install -e ".[dev]"`
-- Run API locally: `python -m ai_workflow_mapper.api` or the project-documented equivalent.
+- Run API locally: `python -m uvicorn ai_workflow_mapper.api.app:app --reload --host 127.0.0.1 --port 8000`
+- Submit your own documents (in-process, no server): `python -m ai_workflow_mapper.cli.submit_job --local --pretty path/to/doc.pdf`
+- Submit via running API: start the server above, then `python -m ai_workflow_mapper.cli.submit_job --pretty path/to/doc.pdf`
+- Set `LLM_API_KEY` in the same terminal (`$env:LLM_API_KEY = "your-key"` on PowerShell) **or** put `LLM_API_KEY=...` in a repo-root `.env` file (loaded automatically on startup).
+- Alternative entry point after install: `workflow-mapper-submit --local --pretty path/to/doc.pdf`
 - Test: `python -m pytest`
 - Security: `python -m pytest tests/security` or the project-documented equivalent.
 - Eval: `python -m ai_workflow_mapper.eval.run_eval --fixtures fixtures/golden --rubric eval/rubric.md`

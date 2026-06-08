@@ -4,17 +4,24 @@ Use this file to record implementation decisions that clarify or intentionally d
 
 ## Decisions
 
-### Domain `input` Fields (POST /jobs)
+### Domain `input` and `options` (POST /jobs)
 
-`schemas/input.schema.json` declares `input: {additionalProperties: true}` — the JSON schema is intentionally open.
-The implementation narrows it in `src/ai_workflow_mapper/workflow/domain.py`:
+Public contracts:
 
-```
-documents: list of {filename (str), content_b64 (base64 str), source_type? (str, default "document")}
-description: str | None   — optional free-text workflow description
-```
+- `schemas/input.schema.json` → `input` refs `workflow_input.schema.json`, `options` refs `job_options.schema.json`.
+- Pydantic: `WorkflowInput`, `JobOptions` in `workflow/domain.py`; wired via `api.models.JobInput`.
 
-Unknown fields in `input` are silently ignored (forward-compatible; `extra="ignore"`).
+`workflow_input`: `documents[]` (`filename`, `content_b64`, `source_type` enum), optional `description`.
+
+`job_options`: `output_format`, `mode`, optional `diagram_types`, `diagram_formats`, `model_profile`, `max_cost_usd`, `require_human_review`.
+
+`extra="forbid"` on domain models — unknown fields are rejected at API validation.
+
+### Domain `result` (job output)
+
+- `schemas/output.schema.json` → `result` is `null` or `workflow_result.schema.json` (or error object on `failed`).
+- Current implementation returns `WorkflowResult` with required `normalization_summary` only; `process_graph` and `analysis` are optional until later slices.
+- `process_extraction.schema.json` is for LLM output; `process_graph.schema.json` and `analysis_findings.schema.json` are defined but not yet populated by the processor.
 
 ### Input Format Routing (Input Normalizer)
 
@@ -25,6 +32,37 @@ The Input Normalizer (`src/ai_workflow_mapper/workflow/normalizer.py`) dispatche
 - `.csv` (Jira/Asana/Notion tool exports) → pipe-delimited text table via stdlib `csv`; `parser="csv"`
 - `.vsdx` (Visio) → unzipped in-memory, Visio page XML text extracted via `xml.etree.ElementTree`; `parser="vsdx"`
 
+### Post-Extraction Text Cleaning
+
+After `document_loader.extract_text` returns raw text, the Input Normalizer runs
+`workflow/text_cleaner.clean_extracted_text()` before building `NormalizedDocument`. Cleaning
+is deterministic (stdlib only: `re`, `unicodedata`) and does not change public contracts.
+
+**Pipeline order:**
+
+1. Unicode repair — NFKC normalization, strip BOM/NUL/zero-width chars, fix PDF ligatures and
+   common mojibake sequences.
+2. Header/footer removal — drop explicit page-number lines (`Page X of Y`, etc.) and lines that
+   repeat on ≥50% of PDF pages (split on `\f` from the loader).
+3. Line-wrap fixes — de-hyphenate PDF line breaks, normalize bullet glyphs to `-`, collapse
+   consecutive duplicate lines.
+4. Table flattening — convert pipe-separated (DOCX/CSV), tab-separated, or space-aligned row
+   blocks into markdown tables (`| col |` + `| --- |` separator). Existing markdown tables are
+   left unchanged.
+5. Whitespace pass — strip trailing line spaces, collapse blank lines, trim document edges.
+
+**Parser guards:** `parser="json"` runs step 1 and outer strip only — JSON structure is not
+altered. All other parsers run the full pipeline.
+
+**Observability:** `NormalizedDocument.metadata["cleaning"]` records `chars_before`,
+`chars_after`, `pages_processed`, `footers_removed`, and `tables_converted`. If cleaning removes
+>40% of characters, a warning is appended: `"Text cleaning removed a large portion of extracted
+content; review source document"`.
+
+**Limitations:** Table detection is heuristic; space-aligned PDF tables may not convert. Repeating
+header detection may remove legitimate repeated section titles on multi-page documents when they
+appear on most pages. OCR for image-only PDFs and DrawingML text boxes remain deferred.
+
 ### Deferred Input Sources
 
 URL ingestion (`http://`, `https://`) is not yet implemented. Documents with URL filenames are
@@ -33,9 +71,11 @@ Implement in a later slice using `httpx` + an HTML-to-text library.
 
 ### Trust-Level Tagging
 
-`<process_content trust_level="untrusted">` wrapping (required by LLM adapter security gate) is
-NOT applied by the Input Normalizer. The normalizer returns plain extracted text. The Process
-Extractor (next slice) is responsible for wrapping content before any LLM call.
+`<process_content trust_level="untrusted">` wrapping is applied by the Process Extractor
+(`workflow/extractor.py`) before every LLM call. The normalizer returns plain text; the extractor
+wraps each document using the adapter's exact opening tag, with `[source: filename]` on the first
+line inside the tag. The optional `description` field is wrapped the same way with
+`[source: description]`.
 
 ### LLM Adapter — `LLM_API_KEY` Environment Variable
 
@@ -55,9 +95,43 @@ explicitly instruct the model to respond with raw JSON only, with no surrounding
 
 `DEFAULT_COST_LIMIT_USD = 1.0` is a pre-call estimated cost check (not a running budget tracker).
 A single call estimated to exceed $1.00 raises `llm_cost_limit_exceeded` and is never sent.
-The estimate is based on character count ÷ 4 ≈ tokens. Large document sets sent in a single
-prompt may trip this; the Extractor must either chunk documents or raise the limit via
-`config.settings["cost_limit_usd"]`.
+The estimate is based on character count ÷ 4 ≈ tokens.
+
+### Process Extractor — Cost Limit Default $5.00
+
+`ProcessExtractor` defaults to `cost_limit_usd=5.0` (not the adapter's $1.00) because a
+20-document corpus routinely exceeds the $1.00 gate in a single combined call. Callers may
+override via `JobOptions.max_cost_usd`. The adapter's own default is deliberately kept low to
+protect isolated module calls; the extractor raises it explicitly for multi-document workloads.
+Document this in IMPLEMENTATION_NOTES when changing the default.
+
+### Process Extractor — Empty Corpus Guard
+
+When all normalized documents have `char_count == 0` (e.g. all image-only PDFs) or no documents
+are provided at all, `ProcessExtractor.extract()` returns an empty `ProcessExtraction` with a
+warning and does **not** call the LLM. This keeps the pipeline valid and avoids unnecessary API
+charges.
+
+### Process Extractor — `description` Parameter
+
+`ProcessExtractor.extract()` takes an optional `description: str | None` argument (not from
+`JobOptions`). The processor passes `job_input.input.description` here. This keeps `JobOptions`
+focused on execution settings and mirrors the domain model where description lives on `WorkflowInput`.
+
+### ProcessGraph Serialization
+
+`WorkflowResult.process_graph` is typed `ProcessGraph | None`. In `processor.py`, the result is
+serialized with `model_dump(mode="json", exclude_none=True)` so nested Pydantic models (including
+`ProcessGraph`, `GraphEdge` with `from` alias) are correctly serialized. `GraphEdge` uses
+`Field(alias="from")` — always serialize with `by_alias=True` when the output must match the JSON
+schema field name `"from"`.
+
+### API — No LLM Call When `LLM_API_KEY` Not Set
+
+`processor.py` checks `os.environ.get("LLM_API_KEY")` before constructing `LocalLLMAdapter`. When
+the key is absent, extraction and graph build are skipped and a warning is appended to
+`normalization_summary.warnings`. This preserves the existing API tests (which use an empty
+documents list) without requiring the env var in CI.
 
 ### Document Loader — 10 MB Per-Document Size Limit
 

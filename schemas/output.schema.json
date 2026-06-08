@@ -1,83 +1,47 @@
 {
-    "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://spec-docs.local/ai_workflow_mapper/output.schema.json",
-    "title":  "AI Workflow Mapper Output",
-    "type":  "object",
-    "additionalProperties":  false,
-    "required":  [
-                     "job_id",
-                     "tool_id",
-                     "status",
-                     "result",
-                     "metadata"
-                 ],
-    "properties":  {
-                       "job_id":  {
-                                      "type":  "string",
-                                      "minLength":  1,
-                                      "description":  "Server-generated job identifier returned by POST /jobs and used by GET /jobs/{job_id}."
-                                  },
-                       "tool_id":  {
-                                       "type":  "string",
-                                       "const":  "ai_workflow_mapper"
-                                   },
-                       "status":  {
-                                      "type":  "string",
-                                      "enum":  [
-                                                   "accepted",
-                                                   "running",
-                                                   "succeeded",
-                                                   "failed",
-                                                   "needs_review"
-                                               ],
-                                      "description":  "Job lifecycle state. Accepted/running jobs may have null result; terminal jobs must include result, errors, warnings, or review context as appropriate."
-                                  },
-                       "result":  {
-                                      "type":  [
-                                                   "object",
-                                                   "null"
-                                               ],
-                                      "additionalProperties":  true,
-                                      "description":  "Validated domain result. May be null until the job succeeds or reaches a reviewable terminal state. Final implementation must narrow this shape."
-                                  },
-                       "citations":  {
-                                         "type":  "array",
-                                         "items":  {
-                                                       "type":  "object",
-                                                       "additionalProperties":  true
-                                                   }
-                                     },
-                       "warnings":  {
-                                        "type":  "array",
-                                        "items":  {
-                                                      "type":  "string"
-                                                  }
-                                    },
-                       "artifacts":  {
-                                         "type":  "array",
-                                         "items":  {
-                                                       "type":  "object",
-                                                       "required":  [
-                                                                        "path",
-                                                                        "type"
-                                                                    ],
-                                                       "properties":  {
-                                                                          "path":  {
-                                                                                       "type":  "string"
-                                                                                   },
-                                                                          "type":  {
-                                                                                       "type":  "string"
-                                                                                   },
-                                                                          "description":  {
-                                                                                              "type":  "string"
-                                                                                          }
-                                                                      },
-                                                       "additionalProperties":  false
-                                                   }
-                                     },
-                       "metadata":  {
-                                        "type":  "object",
-                                        "additionalProperties":  true
-                                    }
-                   }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/output.schema.json",
+  "title": "AI Workflow Mapper Output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_id", "tool_id", "status", "result", "metadata"],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Server-generated job identifier returned by POST /jobs and used by GET /jobs/{job_id}."
+    },
+    "tool_id": {
+      "type": "string",
+      "const": "ai_workflow_mapper"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["accepted", "running", "succeeded", "failed", "needs_review"],
+      "description": "Job lifecycle state. Accepted/running jobs may have null result; terminal jobs must include result, errors, warnings, or review context as appropriate."
+    },
+    "result": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "./workflow_result.schema.json" },
+        { "$ref": "./job_error_result.schema.json" }
+      ]
+    },
+    "citations": {
+      "type": "array",
+      "items": { "$ref": "./citation.schema.json" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "./diagram_artifact.schema.json" }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
 }

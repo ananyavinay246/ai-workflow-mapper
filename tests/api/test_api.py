@@ -25,7 +25,22 @@ def client():
 
 
 def _load_schema(name: str) -> dict:
-    return json.loads((SCHEMAS_DIR / name).read_text())
+    return json.loads((SCHEMAS_DIR / name).read_text(encoding="utf-8"))
+
+
+def _schema_store() -> dict:
+    store: dict = {}
+    for path in sorted(SCHEMAS_DIR.glob("*.schema.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        store[data["$id"]] = data
+    return store
+
+
+def _validate_output(instance: dict) -> None:
+    schema = _load_schema("output.schema.json")
+    store = _schema_store()
+    resolver = jsonschema.RefResolver(base_uri=schema["$id"], referrer=schema, store=store)
+    jsonschema.validate(instance, schema, resolver=resolver)
 
 
 # ---------------------------------------------------------------------------
@@ -128,10 +143,9 @@ def test_get_job_not_found(client):
 
 
 def test_output_validates_against_schema(client):
-    schema = _load_schema("output.schema.json")
     resp = client.post("/jobs", json=_VALID_BODY)
     assert resp.status_code == 202
-    jsonschema.validate(resp.json(), schema)
+    _validate_output(resp.json())
 
 
 def test_error_validates_against_schema(client):

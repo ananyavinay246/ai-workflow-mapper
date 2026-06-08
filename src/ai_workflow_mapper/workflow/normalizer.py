@@ -1,7 +1,6 @@
 """Input Normalizer — extracts text from all supported input formats.
 
 Tier 1 (delegated to document_loader): .txt, .md, .json, .pdf, .docx
-Tier 2 (stdlib parsers):               .xml, .csv, .vsdx
 Tier 3 (deferred):                     URLs, unsupported extensions → skip + warning
 """
 
@@ -22,6 +21,7 @@ from ai_workflow_mapper.platform.contracts.document_loader import (
 )
 
 from .domain import InputDocument, WorkflowInput
+from .text_cleaner import clean_extracted_text
 
 
 _LOADER_EXTENSIONS = frozenset({".txt", ".md", ".json", ".pdf", ".docx"})
@@ -86,12 +86,6 @@ class InputNormalizer:
         ext = Path(doc.filename).suffix.lower()
         if ext in _LOADER_EXTENSIONS:
             return self._extract_via_loader(doc, trace_id)
-        if ext == ".xml":
-            return self._extract_xml(doc)
-        if ext == ".csv":
-            return self._extract_csv(doc)
-        if ext == ".vsdx":
-            return self._extract_vsdx(doc)
         raise UnsupportedSourceError(f"Unsupported format: {ext!r}")
 
     # ------------------------------------------------------------------
@@ -111,13 +105,22 @@ class InputNormalizer:
             err = resp.result.get("error", {})
             raise RuntimeError(err.get("message", "document_loader failed"))
         text = resp.result.get("text", "")
+        parser = resp.result.get("parser", "unknown")
         extra_meta = {k: v for k, v in resp.result.items() if k not in {"text", "char_count", "parser"}}
+        warnings = list(resp.warnings)
+
+        cleaned = clean_extracted_text(text, parser=parser, filename=doc.filename)
+        text = cleaned.text
+        warnings.extend(cleaned.warnings)
+        if cleaned.stats:
+            extra_meta["cleaning"] = cleaned.stats
+
         return NormalizedDocument(
             filename=doc.filename,
             text=text,
             source_type=doc.source_type,
-            char_count=resp.result.get("char_count", len(text)),
-            parser=resp.result.get("parser", "unknown"),
-            warnings=list(resp.warnings),
+            char_count=len(text),
+            parser=parser,
+            warnings=warnings,
             metadata=extra_meta,
         )

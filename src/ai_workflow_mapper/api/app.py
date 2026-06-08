@@ -4,11 +4,14 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from ai_workflow_mapper.platform.env_loader import load_project_env
+
 from .models import ApiError
 from .router import JobNotFoundError, router
 
 
 def create_app() -> FastAPI:
+    load_project_env()
     app = FastAPI(title="AI Workflow Mapper API", version="0.1.0")
     app.include_router(router)
 

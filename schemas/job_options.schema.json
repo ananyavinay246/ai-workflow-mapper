@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/job_options.schema.json",
+  "title": "Job Options",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "output_format": {
+      "type": "string",
+      "enum": ["json", "markdown", "docx", "pdf"],
+      "default": "json",
+      "description": "Primary structured or report output format."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["standard", "fast", "thorough"],
+      "default": "standard",
+      "description": "Analysis depth and cost/latency tradeoff."
+    },
+    "diagram_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "flowchart",
+          "swimlane",
+          "value_stream",
+          "entity_relationship"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "Diagram types to generate when diagram export is enabled."
+    },
+    "diagram_formats": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["mermaid", "bpmn_xml", "drawio_xml", "svg", "png"]
+      },
+      "uniqueItems": true,
+      "description": "Export formats for generated diagrams."
+    },
+    "model_profile": {
+      "type": "string",
+      "description": "Optional LLM model profile override."
+    },
+    "max_cost_usd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Per-job LLM cost ceiling override."
+    },
+    "require_human_review": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, terminal status may be needs_review for high-impact outputs."
+    }
+  }
+}

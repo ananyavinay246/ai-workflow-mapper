@@ -137,6 +137,30 @@ def test_complete_structured_happy_path():
     assert resp.result["structured_object"]["steps"] == ["Submit", "Approve"]
 
 
+def test_complete_structured_accepts_markdown_fenced_json():
+    adapter = _make_adapter()
+    payload = {"steps": ["Submit", "Approve"]}
+    output_schema = {
+        "type": "object",
+        "properties": {"steps": {"type": "array", "items": {"type": "string"}}},
+        "required": ["steps"],
+    }
+    fake = _fake_response(f"```json\n{json.dumps(payload)}\n```")
+    with patch.object(adapter._client.messages, "create", return_value=fake):
+        resp = adapter.handle(
+            _make_request(
+                LLMAdapterOperation.complete_structured,
+                {
+                    "messages": [{"role": "user", "content": _wrap("List steps.")}],
+                    "output_schema": output_schema,
+                    "max_tokens": 200,
+                },
+            )
+        )
+    assert resp.status.value == "succeeded"
+    assert resp.result["structured_object"] == payload
+
+
 def test_complete_structured_schema_validation_failed():
     adapter = _make_adapter()
     output_schema = {

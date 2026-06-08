@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/workflow_result.schema.json",
+  "title": "Workflow Result",
+  "description": "Domain result payload for succeeded or needs_review jobs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["normalization_summary"],
+  "properties": {
+    "normalization_summary": { "$ref": "#/$defs/normalization_summary" },
+    "process_graph": { "$ref": "./process_graph.schema.json" },
+    "analysis": { "$ref": "./analysis_findings.schema.json" }
+  },
+  "$defs": {
+    "skipped_document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "reason"],
+      "properties": {
+        "filename": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "normalization_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normalized_documents", "skipped_documents"],
+      "properties": {
+        "normalized_documents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped_documents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skipped_document" }
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

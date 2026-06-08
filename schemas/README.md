@@ -1,49 +1,41 @@
 # AI Workflow Mapper Schemas
 
-These JSON Schema files are starter source-of-truth contracts. They define the public request, response, config, error, and audit-log shapes that OpenAPI, fixtures, evals, tests, and future clients can all reference.
+JSON Schema (draft 2020-12) contracts for the public API, domain payloads, and shared validation with tests and fixtures.
 
-Because implementation is Python-based, use Pydantic `BaseModel` classes for day-to-day runtime validation and developer ergonomics. The recommended pattern is:
+## Envelope schemas
 
-1. Treat these JSON Schema files as the public contract artifacts.
-2. Implement matching Pydantic models in the Python app.
-3. Validate incoming API/CLI data with the Pydantic models before side effects.
-4. Keep exported Pydantic JSON Schema aligned with the checked-in `*.schema.json` files.
+- `input.schema.json` — `POST /jobs` request (`$ref` → workflow input + job options).
+- `output.schema.json` — job status response (`$ref` → workflow result, citations, diagram artifacts).
+- `config.schema.json` — deployment/runtime configuration (not per-request).
+- `errors.schema.json` — API error body.
+- `audit_log.schema.json` — audit event shape.
 
-## Files
+## Domain schemas
 
-- `input.schema.json`: accepted request format.
-- `output.schema.json`: returned job/result format.
-- `config.schema.json`: runtime configuration shape.
-- `errors.schema.json`: error response shape.
-- `audit_log.schema.json`: audit event shape.
+- `workflow_input.schema.json` — `input` payload: documents + optional description.
+- `job_options.schema.json` — `options` payload: output format, mode, diagram settings, cost/review flags.
+- `workflow_result.schema.json` — `result` on success: `normalization_summary` (required), optional `process_graph` and `analysis`.
+- `job_error_result.schema.json` — `result` when `status` is `failed` (`error` string).
+- `process_extraction.schema.json` — LLM structured output before graph build (`llm_adapter.complete_structured`).
+- `process_graph.schema.json` — canonical nodes, edges, actors, swimlanes.
+- `analysis_findings.schema.json` — report sections (aligned with `report.md.j2`).
+- `citation.schema.json` — evidence items on job output.
+- `diagram_artifact.schema.json` — generated file references in `artifacts[]`.
 
-## Example Pydantic Adaptation
+## Pydantic mirrors
 
-```python
-from typing import Any, Literal
+| Schema | Python model |
+|--------|----------------|
+| `workflow_input` | `workflow.domain.WorkflowInput`, `InputDocument` |
+| `job_options` | `workflow.domain.JobOptions` |
+| `workflow_result` | `workflow.domain.WorkflowResult`, `NormalizationSummary` |
+| Envelope | `api.models.JobInput`, `JobOutput`, `Citation`, `JobArtifact` |
 
-from pydantic import BaseModel, ConfigDict, Field
+API validation uses Pydantic on `JobInput` / `JobOutput`. Contract tests use `jsonschema` with a shared `$id` store (see `tests/schemas/test_contract_schemas.py`).
 
-class AiWorkflowMapperJobInput(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+## Examples
 
-    request_id: str = Field(..., min_length=1)
-    tool_id: Literal["ai_workflow_mapper"]
-    args: dict[str, Any] = Field(..., alias="input")
-    options: dict[str, Any]
-    metadata: dict[str, Any] | None = None
+- `examples/request.example.json` — validates against `input.schema.json`.
+- `examples/response.example.json` — validates against `output.schema.json`.
 
-class AiWorkflowMapperJobOutput(BaseModel):
-    job_id: str = Field(..., min_length=1)
-    tool_id: Literal["ai_workflow_mapper"]
-    status: Literal["accepted", "running", "succeeded", "failed", "needs_review"]
-    result: dict[str, Any] | None = None
-    citations: list[dict[str, Any]] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-    artifacts: list[dict[str, Any]] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
-```
-
-The public JSON field is still `input`. The Python attribute is named `args` with `alias="input"` to avoid shadowing Python's built-in `input()`. When exporting data that must match the public contract, use Pydantic's alias-aware serialization, such as `model_dump(by_alias=True)`.
-
-Before implementation acceptance, narrow the generic `args/input` and `result` dictionaries into domain-specific Pydantic models and update the JSON Schema files to match.
+When adding fields, update the JSON Schema first, then Pydantic models, then examples and `IMPLEMENTATION_NOTES.md` if the change is contract-affecting.

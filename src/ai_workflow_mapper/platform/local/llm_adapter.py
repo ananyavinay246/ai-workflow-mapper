@@ -28,6 +28,19 @@ _COST_PER_M_INPUT_USD = 3.0
 _COST_PER_M_OUTPUT_USD = 15.0
 
 
+def _normalize_json_content(content: str) -> str:
+    """Strip optional markdown code fences from model JSON responses."""
+    text = content.strip()
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if lines and lines[0].startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
 class LLMAdapterModuleError(Exception):
     def __init__(self, error: LLMAdapterError) -> None:
         self.error = error
@@ -39,7 +52,7 @@ class LocalLLMAdapter:
 
     MODULE_ID = "llm_adapter"
     DEFAULT_MODEL = "claude-sonnet-4-6"
-    DEFAULT_TIMEOUT_S = 60.0
+    DEFAULT_TIMEOUT_S = 180.0
     DEFAULT_MAX_RETRIES = 2
     DEFAULT_COST_LIMIT_USD = 1.0
     DEFAULT_REPAIR_MAX_ATTEMPTS = 2
@@ -117,7 +130,10 @@ class LocalLLMAdapter:
         max_tokens: int = int(inp.get("max_tokens", 4096))
 
         self._assert_content_wrapped(messages, LLMAdapterOperation.complete, trace_id)
-        self._check_cost_budget(messages, max_tokens, LLMAdapterOperation.complete, trace_id)
+        cost_limit = self._resolve_cost_limit(inp)
+        self._check_cost_budget(
+            messages, max_tokens, LLMAdapterOperation.complete, trace_id, cost_limit
+        )
 
         response = self._call_api(messages, system, max_tokens, LLMAdapterOperation.complete, trace_id)
         content = response.content[0].text if response.content else ""
@@ -147,34 +163,56 @@ class LocalLLMAdapter:
     ) -> tuple[dict[str, Any], list[str]]:
         output_schema: dict[str, Any] = inp.get("output_schema", {})
         result, warnings = self._complete(inp, trace_id)
-        content = result["content"]
+        content = _normalize_json_content(result["content"])
 
         try:
             structured_obj = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise LLMAdapterModuleError(
-                LLMAdapterError(
-                    operation=LLMAdapterOperation.complete_structured,
-                    error_code=LLMAdapterErrorCode.llm_schema_validation_failed,
-                    message=f"Model response is not valid JSON: {exc}",
-                    retryable=True,
-                    trace_id=trace_id,
+            try:
+                repair_result, repair_warnings = self._repair_structured_output(
+                    {
+                        **inp,
+                        "bad_output": result["content"],
+                        "validation_error": str(exc),
+                    },
+                    trace_id,
                 )
-            ) from exc
+                return repair_result, warnings + repair_warnings
+            except LLMAdapterModuleError:
+                raise LLMAdapterModuleError(
+                    LLMAdapterError(
+                        operation=LLMAdapterOperation.complete_structured,
+                        error_code=LLMAdapterErrorCode.llm_schema_validation_failed,
+                        message=f"Model response is not valid JSON: {exc}",
+                        retryable=True,
+                        trace_id=trace_id,
+                    )
+                ) from exc
 
         if output_schema:
             try:
                 jsonschema.validate(structured_obj, output_schema)
             except jsonschema.ValidationError as exc:
-                raise LLMAdapterModuleError(
-                    LLMAdapterError(
-                        operation=LLMAdapterOperation.complete_structured,
-                        error_code=LLMAdapterErrorCode.llm_schema_validation_failed,
-                        message=f"Structured output failed schema validation: {exc.message}",
-                        retryable=True,
-                        trace_id=trace_id,
+                try:
+                    repair_result, repair_warnings = self._repair_structured_output(
+                        {
+                            **inp,
+                            "bad_output": result["content"],
+                            "validation_error": exc.message,
+                        },
+                        trace_id,
                     )
-                ) from exc
+                    return repair_result, warnings + repair_warnings
+                except LLMAdapterModuleError:
+                    raise LLMAdapterModuleError(
+                        LLMAdapterError(
+                            operation=LLMAdapterOperation.complete_structured,
+                            error_code=LLMAdapterErrorCode.llm_schema_validation_failed,
+                            message=f"Structured output failed schema validation: {exc.message}",
+                            retryable=True,
+                            trace_id=trace_id,
+                        )
+                    ) from exc
 
         return {
             "structured_object": structured_obj,
@@ -210,13 +248,18 @@ class LocalLLMAdapter:
             ]
 
             self._check_cost_budget(
-                repair_messages, max_tokens, LLMAdapterOperation.repair_structured_output, trace_id
+                repair_messages,
+                max_tokens,
+                LLMAdapterOperation.repair_structured_output,
+                trace_id,
+                self._resolve_cost_limit(inp),
             )
             response = self._call_api(
                 repair_messages, system, max_tokens,
                 LLMAdapterOperation.repair_structured_output, trace_id
             )
             content = response.content[0].text if response.content else ""
+            content = _normalize_json_content(content)
 
             try:
                 obj = json.loads(content)
@@ -275,6 +318,11 @@ class LocalLLMAdapter:
     # Security helpers
     # ------------------------------------------------------------------
 
+    def _resolve_cost_limit(self, inp: dict[str, Any]) -> float:
+        if "cost_limit_usd" in inp:
+            return float(inp["cost_limit_usd"])
+        return self._cost_limit_usd
+
     def _assert_content_wrapped(
         self,
         messages: list[dict[str, Any]],
@@ -311,7 +359,9 @@ class LocalLLMAdapter:
         max_tokens: int,
         operation: LLMAdapterOperation,
         trace_id: str,
+        cost_limit_usd: float | None = None,
     ) -> None:
+        limit = self._cost_limit_usd if cost_limit_usd is None else cost_limit_usd
         input_text = " ".join(
             m.get("content", "") for m in messages if isinstance(m.get("content"), str)
         )
@@ -320,13 +370,13 @@ class LocalLLMAdapter:
             estimated_input / 1_000_000 * _COST_PER_M_INPUT_USD
             + max_tokens / 1_000_000 * _COST_PER_M_OUTPUT_USD
         )
-        if cost > self._cost_limit_usd:
+        if cost > limit:
             raise LLMAdapterModuleError(
                 LLMAdapterError(
                     operation=operation,
                     error_code=LLMAdapterErrorCode.llm_cost_limit_exceeded,
                     message=(
-                        f"Estimated cost ${cost:.4f} exceeds limit of ${self._cost_limit_usd:.4f}"
+                        f"Estimated cost ${cost:.4f} exceeds limit of ${limit:.4f}"
                     ),
                     retryable=False,
                     trace_id=trace_id,

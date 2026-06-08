@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/citation.schema.json",
+  "title": "Citation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_filename", "quote", "trust_level"],
+  "properties": {
+    "source_filename": {
+      "type": "string",
+      "minLength": 1
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trust_level": {
+      "type": "string",
+      "enum": ["untrusted", "internal", "verified"],
+      "default": "untrusted"
+    },
+    "char_start": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "char_end": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_id": {
+      "type": "string",
+      "description": "Process graph node id when citation supports a step."
+    },
+    "finding_id": {
+      "type": "string",
+      "description": "Analysis finding id (bottleneck, redundancy, automation)."
+    }
+  }
+}

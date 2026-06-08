@@ -1,39 +1,30 @@
 {
-    "$schema":  "https://json-schema.org/draft/2020-12/schema",
-    "$id":  "https://spec-docs.local/ai_workflow_mapper/input.schema.json",
-    "title":  "AI Workflow Mapper Input",
-    "type":  "object",
-    "additionalProperties":  false,
-    "required":  [
-                     "request_id",
-                     "tool_id",
-                     "input",
-                     "options"
-                 ],
-    "properties":  {
-                       "request_id":  {
-                                          "type":  "string",
-                                          "minLength":  1,
-                                          "description":  "Caller-supplied idempotency and trace identifier."
-                                      },
-                       "tool_id":  {
-                                       "type":  "string",
-                                       "const":  "ai_workflow_mapper"
-                                   },
-                       "input":  {
-                                     "type":  "object",
-                                     "additionalProperties":  true,
-                                     "description":  "Domain input for AI Workflow Mapper. The main specification defines required domain fields."
-                                 },
-                       "options":  {
-                                       "type":  "object",
-                                       "additionalProperties":  true,
-                                       "description":  "Execution options such as output format, model profile, limits, or enabled integrations."
-                                   },
-                       "metadata":  {
-                                        "type":  "object",
-                                        "additionalProperties":  true,
-                                        "description":  "Non-sensitive caller metadata for tracing and audit."
-                                    }
-                   }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/input.schema.json",
+  "title": "AI Workflow Mapper Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "tool_id", "input", "options"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Caller-supplied idempotency and trace identifier."
+    },
+    "tool_id": {
+      "type": "string",
+      "const": "ai_workflow_mapper"
+    },
+    "input": {
+      "$ref": "./workflow_input.schema.json"
+    },
+    "options": {
+      "$ref": "./job_options.schema.json"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Non-sensitive caller metadata for tracing and audit."
+    }
+  }
 }

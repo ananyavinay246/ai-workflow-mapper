@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/workflow_input.schema.json",
+  "title": "Workflow Input",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "documents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/input_document" },
+      "default": []
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional free-text workflow description (interviews, context)."
+    }
+  },
+  "$defs": {
+    "input_document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "content_b64"],
+      "properties": {
+        "filename": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_b64": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Base64-encoded file bytes."
+        },
+        "source_type": {
+          "type": "string",
+          "enum": ["document", "interview", "sop", "diagram", "tool_export"],
+          "default": "document"
+        }
+      }
+    }
+  }
+}

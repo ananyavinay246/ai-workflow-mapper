@@ -1,21 +1,20 @@
 {
-    "job_id":  "job-example-ai_workflow_mapper-001",
-    "tool_id":  "ai_workflow_mapper",
-    "status":  "succeeded",
-    "result":  {
-                   "summary":  "Example successful result for AI Workflow Mapper. Final implementation must narrow this result shape."
-               },
-    "citations":  [
-
-                  ],
-    "warnings":  [
-
-                 ],
-    "artifacts":  [
-
-                  ],
-    "metadata":  {
-                     "trace_id":  "trace-example",
-                     "synthetic":  true
-                 }
+  "job_id": "job-example-ai_workflow_mapper-001",
+  "tool_id": "ai_workflow_mapper",
+  "status": "succeeded",
+  "result": {
+    "normalization_summary": {
+      "normalized_documents": 1,
+      "skipped_documents": 0,
+      "skipped": [],
+      "warnings": []
+    }
+  },
+  "citations": [],
+  "warnings": [],
+  "artifacts": [],
+  "metadata": {
+    "trace_id": "trace-example",
+    "synthetic": true
+  }
 }

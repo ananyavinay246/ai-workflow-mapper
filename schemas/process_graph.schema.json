@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-docs.local/ai_workflow_mapper/process_graph.schema.json",
+  "title": "Process Graph",
+  "description": "Canonical process graph for diagrams and analyzers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "nodes", "edges", "actors"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/graph_node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/graph_edge" }
+    },
+    "actors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/actor" }
+    },
+    "swimlanes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/swimlane" }
+    }
+  },
+  "$defs": {
+    "graph_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "label"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": ["task", "decision", "start", "end", "handoff"]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "actor_id": { "type": "string" },
+        "tool": { "type": "string" },
+        "duration": { "type": "string" },
+        "frequency": { "type": "string" },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "graph_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "kind"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": ["role", "department", "system"]
+        }
+      }
+    },
+    "swimlane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_id", "node_ids"],
+      "properties": {
+        "actor_id": { "type": "string", "minLength": 1 },
+        "node_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
