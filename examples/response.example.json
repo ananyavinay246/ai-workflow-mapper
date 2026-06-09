@@ -12,7 +12,18 @@
   },
   "citations": [],
   "warnings": [],
-  "artifacts": [],
+  "artifacts": [
+    {
+      "path": "artifacts/job-example-ai_workflow_mapper-001/flowchart.mmd",
+      "type": "diagram",
+      "format": "mermaid",
+      "diagram_type": "flowchart",
+      "mime_type": "text/plain",
+      "description": "Process flowchart (Mermaid)",
+      "content": "flowchart TD\n  n___start__([Start])\n  s1[Receive request]\n  n___end__([End])\n  n___start__ --> s1\n  s1 --> n___end__",
+      "checksum": "sha256:synthetic"
+    }
+  ],
   "metadata": {
     "trace_id": "trace-example",
     "synthetic": true

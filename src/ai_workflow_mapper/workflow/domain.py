@@ -170,3 +170,24 @@ class WorkflowResult(BaseModel):
     normalization_summary: NormalizationSummary
     process_graph: ProcessGraph | None = None
     analysis: dict | None = None
+
+
+# ---------------------------------------------------------------------------
+# Diagram artifact (matches diagram_artifact.schema.json)
+# ---------------------------------------------------------------------------
+
+ArtifactFormat = Literal["mermaid", "bpmn_xml", "drawio_xml", "svg", "png", "markdown", "docx", "pdf"]
+
+
+class DiagramArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    description: str | None = None
+    format: ArtifactFormat | None = None
+    diagram_type: DiagramType | None = None
+    mime_type: str | None = None
+    storage_uri: str | None = None
+    content: str | None = None
+    checksum: str | None = None

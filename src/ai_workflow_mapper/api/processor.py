@@ -1,12 +1,14 @@
 """Job processor — wires the workflow pipeline into the API layer."""
 
 import os
+from dataclasses import dataclass, field
 from typing import Any
 
 from ai_workflow_mapper.platform.contracts.document_loader import DocumentLoaderConfig
 from ai_workflow_mapper.platform.contracts.llm_adapter import LLMAdapterConfig, LLMAdapterContext
 from ai_workflow_mapper.platform.local.document_loader import LocalDocumentLoader
 from ai_workflow_mapper.platform.local.llm_adapter import LocalLLMAdapter
+from ai_workflow_mapper.workflow.diagram_generator import MermaidDiagramGenerator
 from ai_workflow_mapper.workflow.domain import NormalizationSummary, SkippedDocument, WorkflowResult
 from ai_workflow_mapper.workflow.extractor import ProcessExtractor
 from ai_workflow_mapper.workflow.graph_builder import ProcessGraphBuilder
@@ -19,6 +21,13 @@ _SYSTEM_CTX = LLMAdapterContext(
     tenant_id="system",
     environment="local",
 )
+
+
+@dataclass
+class JobProcessResult:
+    result: dict[str, Any]
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def _build_llm_adapter(job_input: JobInput) -> LocalLLMAdapter | None:
@@ -45,8 +54,8 @@ def _build_llm_adapter(job_input: JobInput) -> LocalLLMAdapter | None:
     )
 
 
-def process(job_input: JobInput) -> dict[str, Any]:
-    """Run the workflow pipeline: normalize → extract → build graph."""
+def process(job_input: JobInput) -> JobProcessResult:
+    """Run the workflow pipeline: normalize → extract → build graph → diagrams."""
     from ai_workflow_mapper.platform.env_loader import load_project_env
 
     load_project_env()
@@ -80,7 +89,8 @@ def process(job_input: JobInput) -> dict[str, Any]:
         )
         for w in extraction.warnings:
             summary.warnings.append(w)
-        process_graph = ProcessGraphBuilder().build(extraction)
+        built = ProcessGraphBuilder().build(extraction)
+        process_graph = built if built.nodes else None
     else:
         summary.warnings.append(
             "LLM_API_KEY not set; skipping process extraction and graph build."
@@ -88,6 +98,19 @@ def process(job_input: JobInput) -> dict[str, Any]:
 
     result = WorkflowResult(
         normalization_summary=summary,
-        process_graph=process_graph if process_graph and process_graph.nodes else None,
+        process_graph=process_graph,
     )
-    return result.model_dump(mode="json", exclude_none=True)
+    result_dict = result.model_dump(mode="json", exclude_none=True, by_alias=True)
+
+    artifacts: list[dict[str, Any]] = []
+    job_warnings: list[str] = []
+    if process_graph is not None:
+        diagram_artifacts, diagram_warnings = MermaidDiagramGenerator().generate(
+            process_graph,
+            job_input.options,
+            job_input.request_id,
+        )
+        artifacts = [a.model_dump(mode="json", exclude_none=True) for a in diagram_artifacts]
+        job_warnings.extend(diagram_warnings)
+
+    return JobProcessResult(result=result_dict, artifacts=artifacts, warnings=job_warnings)

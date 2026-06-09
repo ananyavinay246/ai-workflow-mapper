@@ -126,6 +126,34 @@ serialized with `model_dump(mode="json", exclude_none=True)` so nested Pydantic 
 `Field(alias="from")` — always serialize with `by_alias=True` when the output must match the JSON
 schema field name `"from"`.
 
+### Mermaid Diagram Generator
+
+After `ProcessGraphBuilder`, the processor optionally runs `MermaidDiagramGenerator`
+(`workflow/diagram_generator.py`) when `JobOptions.diagram_formats` contains `"mermaid"`.
+
+**Opt-in:** If `diagram_formats` is omitted, no diagrams are generated (backward compatible).
+CLI: `python -m ai_workflow_mapper.cli.submit_job --mermaid ...` sets `diagram_formats: ["mermaid"]`.
+
+**Default diagram types when enabled:** `flowchart` and `swimlane` unless `diagram_types` narrows
+the set. `value_stream` and `entity_relationship` are not implemented for Mermaid yet — they add
+a job-level warning and are skipped.
+
+**Output location:** Artifacts appear on `JobOutput.artifacts[]` (not inside `workflow_result`).
+Each entry matches `diagram_artifact.schema.json` with `type: "diagram"`, `format: "mermaid"`,
+inline `content`, relative `path` under `artifacts/{request_id}/`, and `checksum: sha256:...`.
+Files are written locally by `platform/local/artifact_writer.py`.
+
+**Rendering:** `workflow/mermaid_renderer.py` maps graph node types to Mermaid shapes (start/end
+stadium, task rectangle, decision diamond, handoff double-border). Edges mirror `process_graph.edges`
+exactly — no invented transitions. Swimlanes use Mermaid `subgraph` blocks per actor.
+
+**Validation:** Slice 1 performs structural checks (header, declared nodes, edge endpoints). Full
+Mermaid parser validation (spec quality gate) is deferred to eval harness / optional CI with
+`@mermaid-js/mermaid-cli`.
+
+**Processor return type:** `process()` returns `JobProcessResult(result, artifacts, warnings)`.
+Diagram warnings are job-level (`JobOutput.warnings`), not `normalization_summary.warnings`.
+
 ### API — No LLM Call When `LLM_API_KEY` Not Set
 
 `processor.py` checks `os.environ.get("LLM_API_KEY")` before constructing `LocalLLMAdapter`. When

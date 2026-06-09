@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 
 from ai_workflow_mapper.api.models import JobInput
-from ai_workflow_mapper.api.processor import process
+from ai_workflow_mapper.api.processor import JobProcessResult, process
 from ai_workflow_mapper.workflow.domain import InputDocument, JobMode, JobOptions, SourceType, WorkflowInput
 
 _SUPPORTED_EXTENSIONS = {".txt", ".md", ".json", ".pdf", ".docx"}
@@ -42,6 +42,7 @@ def build_job_input(
     request_id: str | None = None,
     max_cost_usd: float | None = None,
     mode: JobMode = "standard",
+    mermaid: bool = False,
 ) -> JobInput:
     documents: list[InputDocument] = []
     for path in paths:
@@ -63,8 +64,13 @@ def build_job_input(
         )
 
     options = JobOptions(mode=mode)
+    updates: dict[str, Any] = {}
     if max_cost_usd is not None:
-        options = options.model_copy(update={"max_cost_usd": max_cost_usd})
+        updates["max_cost_usd"] = max_cost_usd
+    if mermaid:
+        updates["diagram_formats"] = ["mermaid"]
+    if updates:
+        options = options.model_copy(update=updates)
 
     return JobInput(
         request_id=request_id or f"cli-{uuid.uuid4()}",
@@ -73,7 +79,7 @@ def build_job_input(
     )
 
 
-def run_local(job_input: JobInput) -> dict[str, Any]:
+def run_local(job_input: JobInput) -> JobProcessResult:
     return process(job_input)
 
 
@@ -104,6 +110,12 @@ def _print_summary(result: dict[str, Any]) -> None:
             f"{len(graph.get('actors', []))} actors",
             file=sys.stderr,
         )
+    artifacts = result.get("artifacts") or []
+    if artifacts:
+        types = ", ".join(
+            f"{a.get('diagram_type', 'diagram')} ({a.get('path', '')})" for a in artifacts
+        )
+        print(f"artifacts: {len(artifacts)} ({types})", file=sys.stderr)
     warnings = summary.get("warnings") or result.get("warnings") or []
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)
@@ -158,6 +170,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Analysis mode passed in job options",
     )
     parser.add_argument(
+        "--mermaid",
+        action="store_true",
+        help="Generate Mermaid flowchart and swimlane diagrams (sets diagram_formats)",
+    )
+    parser.add_argument(
         "--request-id",
         help="Caller request id (default: generated UUID)",
     )
@@ -190,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             request_id=args.request_id,
             max_cost_usd=args.max_cost_usd,
             mode=args.mode,
+            mermaid=args.mermaid,
         )
     except (FileNotFoundError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -197,11 +215,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.local:
+            out = run_local(job_input)
             payload = {
                 "job_id": job_input.request_id,
                 "tool_id": "ai_workflow_mapper",
                 "status": "succeeded",
-                "result": run_local(job_input),
+                "result": out.result,
+                "artifacts": out.artifacts or None,
+                "warnings": out.warnings or None,
                 "metadata": {"source": "cli", "mode": "local"},
             }
         else:

@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Receive request", "actor_id": "agent"},
+    {"id": "s2", "type": "decision", "label": "Approved?", "actor_id": "manager"},
+    {"id": "s3", "type": "task", "label": "Process order", "actor_id": "ops"},
+    {"id": "__handoff_0__", "type": "handoff", "label": "Agent -> Operations"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "s2"},
+    {"from": "s2", "to": "s3", "label": "Yes: Approved?"},
+    {"from": "s3", "to": "__end__"},
+    {"from": "s1", "to": "__handoff_0__"},
+    {"from": "__handoff_0__", "to": "s3"}
+  ],
+  "actors": [
+    {"id": "agent", "name": "Agent", "kind": "role"},
+    {"id": "manager", "name": "Manager", "kind": "role"},
+    {"id": "ops", "name": "Operations", "kind": "role"}
+  ],
+  "swimlanes": [
+    {"actor_id": "agent", "node_ids": ["s1"]},
+    {"actor_id": "manager", "node_ids": ["s2"]},
+    {"actor_id": "ops", "node_ids": ["s3", "__handoff_0__"]}
+  ]
+}

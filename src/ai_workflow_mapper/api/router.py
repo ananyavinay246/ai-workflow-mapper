@@ -25,8 +25,14 @@ def health() -> dict:
 def submit_job(body: JobInput) -> JobOutput:
     job_id = create_job(body.request_id)
     try:
-        result = process(body)
-        update_job(job_id, status="succeeded", result=result)
+        out = process(body)
+        update_job(
+            job_id,
+            status="succeeded",
+            result=out.result,
+            artifacts=out.artifacts or None,
+            warnings=out.warnings or None,
+        )
     except Exception as exc:  # noqa: BLE001
         update_job(job_id, status="failed", result={"error": str(exc)})
     job = get_job(job_id)

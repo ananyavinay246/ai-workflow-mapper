@@ -32,3 +32,7 @@
 6/7/2026:
 
 - Improved the LLM prompt and created a `text_cleaner.py` that removes unnecessary characters and details from the text.
+
+6/8/2026:
+
+- Implemented Mermaid Diagram Generator (`workflow/diagram_generator.py`, `workflow/mermaid_renderer.py`): opt-in via `diagram_formats: ["mermaid"]`, produces flowchart and swimlane artifacts on `JobOutput.artifacts[]`.
