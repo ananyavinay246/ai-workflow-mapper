@@ -8,8 +8,14 @@ from ai_workflow_mapper.platform.contracts.document_loader import DocumentLoader
 from ai_workflow_mapper.platform.contracts.llm_adapter import LLMAdapterConfig, LLMAdapterContext
 from ai_workflow_mapper.platform.local.document_loader import LocalDocumentLoader
 from ai_workflow_mapper.platform.local.llm_adapter import LocalLLMAdapter
+from ai_workflow_mapper.workflow.bottleneck_analyzer import BottleneckAnalyzer
 from ai_workflow_mapper.workflow.diagram_generator import MermaidDiagramGenerator
-from ai_workflow_mapper.workflow.domain import NormalizationSummary, SkippedDocument, WorkflowResult
+from ai_workflow_mapper.workflow.domain import (
+    AnalysisFindings,
+    NormalizationSummary,
+    SkippedDocument,
+    WorkflowResult,
+)
 from ai_workflow_mapper.workflow.extractor import ProcessExtractor
 from ai_workflow_mapper.workflow.graph_builder import ProcessGraphBuilder
 from ai_workflow_mapper.workflow.normalizer import InputNormalizer
@@ -27,6 +33,7 @@ _SYSTEM_CTX = LLMAdapterContext(
 class JobProcessResult:
     result: dict[str, Any]
     artifacts: list[dict[str, Any]] = field(default_factory=list)
+    citations: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -40,7 +47,7 @@ def _build_llm_adapter(job_input: JobInput) -> LocalLLMAdapter | None:
     if job_input.options.max_cost_usd is not None:
         settings["cost_limit_usd"] = job_input.options.max_cost_usd
     else:
-        settings["cost_limit_usd"] = 0.5
+        settings["cost_limit_usd"] = 1.0
     if job_input.options.model_profile:
         settings["model_id"] = job_input.options.model_profile
 
@@ -96,15 +103,22 @@ def process(job_input: JobInput) -> JobProcessResult:
             "LLM_API_KEY not set; skipping process extraction and graph build."
         )
 
-    result = WorkflowResult(
-        normalization_summary=summary,
-        process_graph=process_graph,
-    )
-    result_dict = result.model_dump(mode="json", exclude_none=True, by_alias=True)
-
+    analysis: AnalysisFindings | None = None
+    citations: list[dict[str, Any]] = []
     artifacts: list[dict[str, Any]] = []
     job_warnings: list[str] = []
+
     if process_graph is not None:
+        findings, citations, bn_warnings = BottleneckAnalyzer(llm_adapter).analyze(
+            process_graph,
+            normalized,
+            job_input.options,
+            trace_id=job_input.request_id,
+        )
+        job_warnings.extend(bn_warnings)
+        if findings:
+            analysis = AnalysisFindings(bottlenecks=findings)
+
         diagram_artifacts, diagram_warnings = MermaidDiagramGenerator().generate(
             process_graph,
             job_input.options,
@@ -113,4 +127,20 @@ def process(job_input: JobInput) -> JobProcessResult:
         artifacts = [a.model_dump(mode="json", exclude_none=True) for a in diagram_artifacts]
         job_warnings.extend(diagram_warnings)
 
-    return JobProcessResult(result=result_dict, artifacts=artifacts, warnings=job_warnings)
+    result = WorkflowResult(
+        normalization_summary=summary,
+        process_graph=process_graph,
+        analysis=analysis,
+    )
+    result_dict = result.model_dump(mode="json", exclude_none=True, by_alias=True)
+    if result_dict.get("analysis"):
+        result_dict["analysis"] = {
+            k: v for k, v in result_dict["analysis"].items() if v
+        }
+
+    return JobProcessResult(
+        result=result_dict,
+        artifacts=artifacts,
+        citations=citations,
+        warnings=job_warnings,
+    )

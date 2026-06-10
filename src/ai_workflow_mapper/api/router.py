@@ -30,6 +30,7 @@ def submit_job(body: JobInput) -> JobOutput:
             job_id,
             status="succeeded",
             result=out.result,
+            citations=out.citations or None,
             artifacts=out.artifacts or None,
             warnings=out.warnings or None,
         )

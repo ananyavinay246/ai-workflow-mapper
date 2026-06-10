@@ -55,6 +55,36 @@ def test_workflow_result_minimal_validates(schema_store):
     validate_against_schema(data, "workflow_result.schema.json", schema_store)
 
 
+def test_workflow_result_with_bottlenecks_validates(schema_store):
+    data = {
+        "normalization_summary": {
+            "normalized_documents": 1,
+            "skipped_documents": 0,
+            "skipped": [],
+            "warnings": [],
+        },
+        "analysis": {
+            "bottlenecks": [
+                {
+                    "id": "bn-s2",
+                    "name": "Review and approve request",
+                    "severity": "Critical",
+                    "description": "Approval queue on critical path.",
+                    "impact": "Blocks fulfillment.",
+                    "root_cause_hypothesis": "Single approver.",
+                    "evidence": [
+                        {
+                            "quote": "Review and approve request",
+                            "source_filename": "sop.txt",
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+    validate_against_schema(data, "workflow_result.schema.json", schema_store)
+
+
 def test_process_extraction_empty_validates(schema_store):
     validate_against_schema(
         {"steps": [], "handoffs": [], "warnings": []},

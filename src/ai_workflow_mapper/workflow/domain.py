@@ -164,12 +164,85 @@ class NormalizationSummary(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+# ---------------------------------------------------------------------------
+# Analysis findings (matches analysis_findings.schema.json)
+# ---------------------------------------------------------------------------
+
+Severity = Literal["Critical", "Moderate", "Minor"]
+AutomationEffort = Literal["Low", "Medium", "High"]
+
+
+class Evidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    quote: str = Field(min_length=1)
+    source_filename: str = Field(min_length=1)
+    char_start: int | None = Field(default=None, ge=0)
+    char_end: int | None = Field(default=None, ge=0)
+
+
+class ProcessInventoryItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    owner: str | None = None
+    duration: str | None = None
+    frequency: str | None = None
+
+
+class BottleneckFinding(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    severity: Severity
+    description: str = ""
+    impact: str | None = None
+    root_cause_hypothesis: str | None = None
+    evidence: list[Evidence] = Field(default_factory=list)
+
+
+class RedundancyFinding(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = ""
+    waste_estimate: str | None = None
+    affected_steps: list[str] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
+
+
+class AutomationOpportunity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    effort: AutomationEffort | None = None
+    roi: str | None = None
+    priority: str | None = None
+    time_savings_per_week: str | None = None
+    suggested_approach: str | None = None
+    evidence: list[Evidence] = Field(default_factory=list)
+
+
+class AnalysisFindings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    executive_summary: str | None = None
+    processes: list[ProcessInventoryItem] = Field(default_factory=list)
+    bottlenecks: list[BottleneckFinding] = Field(default_factory=list)
+    redundancies: list[RedundancyFinding] = Field(default_factory=list)
+    automation_opportunities: list[AutomationOpportunity] = Field(default_factory=list)
+    next_steps: list[str] = Field(default_factory=list)
+
+
 class WorkflowResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     normalization_summary: NormalizationSummary
     process_graph: ProcessGraph | None = None
-    analysis: dict | None = None
+    analysis: AnalysisFindings | None = None
 
 
 # ---------------------------------------------------------------------------

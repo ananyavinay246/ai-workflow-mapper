@@ -31,7 +31,7 @@ _SCHEMAS_DIR = Path(__file__).parents[3] / "schemas"
 # Default cost limit for multi-document corpora.  The LLM adapter's own
 # default is $1.00 which is too low for a 20-document corpus.  Callers can
 # override via JobOptions.max_cost_usd.
-_DEFAULT_COST_LIMIT_USD = 0.5
+_DEFAULT_COST_LIMIT_USD = 1.0
 
 _SYSTEM_PROMPT_TEMPLATE = """\
 # Process Extraction System Prompt

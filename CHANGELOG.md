@@ -36,3 +36,8 @@
 6/8/2026:
 
 - Implemented Mermaid Diagram Generator (`workflow/diagram_generator.py`, `workflow/mermaid_renderer.py`): opt-in via `diagram_formats: ["mermaid"]`, produces flowchart and swimlane artifacts on `JobOutput.artifacts[]`.
+
+6/9/2026:
+
+- Added Kroki PNG export (`platform/local/kroki_client.py`): opt-in via `diagram_formats: ["png"]` or CLI `--png`.
+- Implemented Bottleneck Analyzer (`workflow/bottleneck_heuristics.py`, `workflow/evidence_matcher.py`, `workflow/bottleneck_analyzer.py`): deterministic graph heuristics after ProcessGraph build; document quote evidence; optional LLM narrative enrichment in `thorough` mode. Populates `result.analysis.bottlenecks` and top-level `JobOutput.citations`.

@@ -20,8 +20,8 @@ Public contracts:
 ### Domain `result` (job output)
 
 - `schemas/output.schema.json` → `result` is `null` or `workflow_result.schema.json` (or error object on `failed`).
-- Current implementation returns `WorkflowResult` with required `normalization_summary` only; `process_graph` and `analysis` are optional until later slices.
-- `process_extraction.schema.json` is for LLM output; `process_graph.schema.json` and `analysis_findings.schema.json` are defined but not yet populated by the processor.
+- `WorkflowResult` includes `normalization_summary` (required), optional `process_graph`, and optional partial `analysis` (`analysis_findings` with only populated sections, e.g. `bottlenecks`).
+- `process_extraction.schema.json` is for LLM structured extraction output only.
 
 ### Input Format Routing (Input Normalizer)
 
@@ -151,8 +151,61 @@ exactly — no invented transitions. Swimlanes use Mermaid `subgraph` blocks per
 Mermaid parser validation (spec quality gate) is deferred to eval harness / optional CI with
 `@mermaid-js/mermaid-cli`.
 
-**Processor return type:** `process()` returns `JobProcessResult(result, artifacts, warnings)`.
+**Processor return type:** `process()` returns `JobProcessResult(result, artifacts, citations, warnings)`.
 Diagram warnings are job-level (`JobOutput.warnings`), not `normalization_summary.warnings`.
+
+**PNG export (Kroki):** When `diagram_formats` includes `"png"`, each Mermaid diagram is POSTed to
+the Kroki API (`KROKI_BASE_URL`, default `https://kroki.io`) and saved as `flowchart.png` /
+`swimlane.png` under `artifacts/{request_id}/`. Requires network access. Kroki failures add a
+job-level warning and do not fail the job. CLI: `--mermaid --png`. PNG artifacts omit inline
+`content` (binary); use `path` to read the file.
+
+**Kroki timeout:** The HTTP client waits up to `KROKI_TIMEOUT_S` seconds per diagram (default
+`60`). This is a local client limit, not a Kroki server hard cap. Large or complex Mermaid graphs
+on the public `kroki.io` instance may need a higher value (e.g. `120`). CLI `--timeout` applies
+only to `--no-local` API submission, not Kroki rendering.
+
+### Bottleneck Analyzer
+
+After `ProcessGraphBuilder`, when `process_graph` is non-empty, the processor runs
+`BottleneckAnalyzer` (`workflow/bottleneck_analyzer.py`) using graph heuristics
+(`workflow/bottleneck_heuristics.py`) and document quote matching
+(`workflow/evidence_matcher.py`).
+
+**Activation:** Same gate as diagram generation — requires a non-empty `process_graph`. No new
+`job_options` flag; `mode` controls LLM depth only.
+
+**Detection (deterministic):** Candidates are task/decision nodes flagged by:
+
+- High inbound edge count (`in_degree >= 2`) or incoming edge from a `handoff` node
+- Queue/approval keywords in the label (`approve`, `review`, `hold`, `queue`, `wait`, …)
+- Single-point-of-failure: sole actor on the longest start→end path with downstream fan-out
+- Critical-path hub: on longest path with `out_degree >= 2`
+
+**Severity:** `Critical` / `Moderate` / `Minor` from critical-path membership, signal strength,
+and inbound handoffs. Enum casing matches `analysis_findings.schema.json` exactly.
+
+**Evidence:** `EvidenceMatcher` searches normalized document text for a substring of the step
+label. If no match, the finding is still emitted with `evidence: []` and an analyzer warning.
+Quotes are never invented.
+
+**Citations:** Each evidence item is promoted to `JobOutput.citations[]` with
+`finding_id=bn-{node_id}`, `node_id`, and `trust_level="untrusted"`.
+
+**LLM enrichment (`thorough` mode only):** When `JobOptions.mode == "thorough"` and
+`LLM_API_KEY` is set, `complete_structured` refines `description`, `impact`, and
+`root_cause_hypothesis`. LLM-supplied quotes are post-validated against normalized documents;
+ungrounded quotes are dropped. On LLM failure, heuristic findings are preserved with a warning.
+
+**Partial analysis output:** Only `analysis.bottlenecks` is populated; other
+`analysis_findings` sections are omitted from serialized output.
+
+**Known limitations:** In-degree may be inflated when the graph builder emits redundant
+sequential + handoff edges. `require_human_review` / `needs_review` status for Critical findings
+is deferred to a follow-up slice.
+
+**Processor return type:** `process()` returns `JobProcessResult(result, artifacts, citations, warnings)`.
+Bottleneck warnings are job-level (`JobOutput.warnings`).
 
 ### API — No LLM Call When `LLM_API_KEY` Not Set
 

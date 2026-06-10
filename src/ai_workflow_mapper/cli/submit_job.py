@@ -19,6 +19,48 @@ from ai_workflow_mapper.workflow.domain import InputDocument, JobMode, JobOption
 _SUPPORTED_EXTENSIONS = {".txt", ".md", ".json", ".pdf", ".docx"}
 
 
+def _files_in_directory(directory: Path, *, recursive: bool) -> list[Path]:
+    """Return supported document files from a directory (sorted by name)."""
+    if recursive:
+        candidates = [
+            path
+            for path in directory.rglob("*")
+            if path.is_file() and path.suffix.lower() in _SUPPORTED_EXTENSIONS
+        ]
+    else:
+        candidates = [
+            path
+            for path in directory.iterdir()
+            if path.is_file() and path.suffix.lower() in _SUPPORTED_EXTENSIONS
+        ]
+    return sorted(candidates, key=lambda p: str(p).lower())
+
+
+def _expand_input_paths(paths: list[Path], *, recursive: bool = False) -> list[Path]:
+    """Expand file paths and directories into a deduplicated list of files."""
+    expanded: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        resolved = path.expanduser().resolve()
+        if resolved.is_file():
+            candidates = [resolved]
+        elif resolved.is_dir():
+            candidates = _files_in_directory(resolved, recursive=recursive)
+            if not candidates:
+                supported = ", ".join(sorted(_SUPPORTED_EXTENSIONS))
+                raise ValueError(
+                    f"No supported documents in {resolved}. Supported extensions: {supported}"
+                )
+        else:
+            raise FileNotFoundError(f"Path not found: {resolved}")
+
+        for file_path in candidates:
+            if file_path not in seen:
+                seen.add(file_path)
+                expanded.append(file_path)
+    return expanded
+
+
 def _encode_file(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
 
@@ -43,12 +85,12 @@ def build_job_input(
     max_cost_usd: float | None = None,
     mode: JobMode = "standard",
     mermaid: bool = False,
+    png: bool = False,
+    recursive: bool = False,
 ) -> JobInput:
     documents: list[InputDocument] = []
-    for path in paths:
-        resolved = path.expanduser().resolve()
-        if not resolved.is_file():
-            raise FileNotFoundError(f"Not a file: {resolved}")
+    for path in _expand_input_paths(paths, recursive=recursive):
+        resolved = path
         ext = resolved.suffix.lower()
         if ext not in _SUPPORTED_EXTENSIONS:
             supported = ", ".join(sorted(_SUPPORTED_EXTENSIONS))
@@ -69,6 +111,13 @@ def build_job_input(
         updates["max_cost_usd"] = max_cost_usd
     if mermaid:
         updates["diagram_formats"] = ["mermaid"]
+    if png:
+        formats = list(updates.get("diagram_formats") or [])
+        if "png" not in formats:
+            formats.append("png")
+        if "mermaid" not in formats:
+            formats.insert(0, "mermaid")
+        updates["diagram_formats"] = formats
     if updates:
         options = options.model_copy(update=updates)
 
@@ -110,6 +159,13 @@ def _print_summary(result: dict[str, Any]) -> None:
             f"{len(graph.get('actors', []))} actors",
             file=sys.stderr,
         )
+    analysis = job_result.get("analysis") or {}
+    bottlenecks = analysis.get("bottlenecks") or []
+    if bottlenecks:
+        print(f"bottlenecks: {len(bottlenecks)}", file=sys.stderr)
+    citations = result.get("citations") or []
+    if citations:
+        print(f"citations: {len(citations)}", file=sys.stderr)
     artifacts = result.get("artifacts") or []
     if artifacts:
         types = ", ".join(
@@ -129,7 +185,13 @@ def build_parser() -> argparse.ArgumentParser:
         "files",
         nargs="+",
         type=Path,
-        help="Paths to .txt, .md, .json, .pdf, or .docx files",
+        help="Paths to documents or folders containing .txt, .md, .json, .pdf, or .docx files",
+    )
+    parser.add_argument(
+        "--recursive",
+        "-r",
+        action="store_true",
+        help="When a folder is given, include supported files from subfolders too",
     )
     parser.add_argument(
         "--description",
@@ -175,6 +237,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generate Mermaid flowchart and swimlane diagrams (sets diagram_formats)",
     )
     parser.add_argument(
+        "--png",
+        action="store_true",
+        help="Render diagrams as PNG via Kroki (implies --mermaid; requires network)",
+    )
+    parser.add_argument(
         "--request-id",
         help="Caller request id (default: generated UUID)",
     )
@@ -208,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
             max_cost_usd=args.max_cost_usd,
             mode=args.mode,
             mermaid=args.mermaid,
+            png=args.png,
+            recursive=args.recursive,
         )
     except (FileNotFoundError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -221,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
                 "tool_id": "ai_workflow_mapper",
                 "status": "succeeded",
                 "result": out.result,
+                "citations": out.citations or None,
                 "artifacts": out.artifacts or None,
                 "warnings": out.warnings or None,
                 "metadata": {"source": "cli", "mode": "local"},

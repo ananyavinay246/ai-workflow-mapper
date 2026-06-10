@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Sign contract", "actor_id": "legal"},
+    {"id": "s2", "type": "task", "label": "Deploy system", "actor_id": "ops"},
+    {"id": "s3", "type": "task", "label": "Notify stakeholders", "actor_id": "ops"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "s2"},
+    {"from": "s1", "to": "s3"},
+    {"from": "s2", "to": "__end__"},
+    {"from": "s3", "to": "__end__"}
+  ],
+  "actors": [
+    {"id": "legal", "name": "Legal", "kind": "role"},
+    {"id": "ops", "name": "Operations", "kind": "role"}
+  ],
+  "swimlanes": [
+    {"actor_id": "legal", "node_ids": ["s1"]},
+    {"actor_id": "ops", "node_ids": ["s2", "s3"]}
+  ]
+}

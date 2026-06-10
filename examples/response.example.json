@@ -8,9 +8,39 @@
       "skipped_documents": 0,
       "skipped": [],
       "warnings": []
+    },
+    "analysis": {
+      "bottlenecks": [
+        {
+          "id": "bn-s2",
+          "name": "Review and approve request",
+          "severity": "Critical",
+          "description": "Bottleneck detected at process step 'Review and approve request' (queue_keyword, high_inbound_edges:2, handoff_inbound).",
+          "impact": "Affects 2 downstream node(s); inbound edges: 2, outbound edges: 1.",
+          "root_cause_hypothesis": "Step appears to involve approval, review, or queuing. Work accumulates at a handoff boundary.",
+          "evidence": [
+            {
+              "quote": "Review and approve request",
+              "source_filename": "onboarding-sop.txt",
+              "char_start": 42,
+              "char_end": 68
+            }
+          ]
+        }
+      ]
     }
   },
-  "citations": [],
+  "citations": [
+    {
+      "source_filename": "onboarding-sop.txt",
+      "quote": "Review and approve request",
+      "trust_level": "untrusted",
+      "char_start": 42,
+      "char_end": 68,
+      "node_id": "s2",
+      "finding_id": "bn-s2"
+    }
+  ],
   "warnings": [],
   "artifacts": [
     {
