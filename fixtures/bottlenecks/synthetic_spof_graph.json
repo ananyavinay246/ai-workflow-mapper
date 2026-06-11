@@ -5,14 +5,17 @@
     {"id": "s1", "type": "task", "label": "Sign contract", "actor_id": "legal"},
     {"id": "s2", "type": "task", "label": "Deploy system", "actor_id": "ops"},
     {"id": "s3", "type": "task", "label": "Notify stakeholders", "actor_id": "ops"},
+    {"id": "s4", "type": "task", "label": "Archive contract records", "actor_id": "ops"},
     {"id": "__end__", "type": "end", "label": "End"}
   ],
   "edges": [
     {"from": "__start__", "to": "s1"},
     {"from": "s1", "to": "s2"},
     {"from": "s1", "to": "s3"},
+    {"from": "s1", "to": "s4"},
     {"from": "s2", "to": "__end__"},
-    {"from": "s3", "to": "__end__"}
+    {"from": "s3", "to": "__end__"},
+    {"from": "s4", "to": "__end__"}
   ],
   "actors": [
     {"id": "legal", "name": "Legal", "kind": "role"},
@@ -20,6 +23,6 @@
   ],
   "swimlanes": [
     {"actor_id": "legal", "node_ids": ["s1"]},
-    {"actor_id": "ops", "node_ids": ["s2", "s3"]}
+    {"actor_id": "ops", "node_ids": ["s2", "s3", "s4"]}
   ]
 }

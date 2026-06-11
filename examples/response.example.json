@@ -27,6 +27,21 @@
             }
           ]
         }
+      ],
+      "redundancies": [
+        {
+          "id": "rd-duplicate_system_entry-s1-s2",
+          "name": "Duplicate data entry across systems",
+          "description": "The same data appears to be entered into multiple systems: Enter customer order into ERP; Log customer order in CRM.",
+          "waste_estimate": "Approximately 30 minute(s) of redundant effort per process run.",
+          "affected_steps": ["s1", "s2"],
+          "evidence": [
+            {
+              "quote": "Enter customer order into ERP",
+              "source_filename": "onboarding-sop.txt"
+            }
+          ]
+        }
       ]
     }
   },
@@ -39,6 +54,13 @@
       "char_end": 68,
       "node_id": "s2",
       "finding_id": "bn-s2"
+    },
+    {
+      "source_filename": "onboarding-sop.txt",
+      "quote": "Enter customer order into ERP",
+      "trust_level": "untrusted",
+      "node_id": "s1",
+      "finding_id": "rd-duplicate_system_entry-s1-s2"
     }
   ],
   "warnings": [],

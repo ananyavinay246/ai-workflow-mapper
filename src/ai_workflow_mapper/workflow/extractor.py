@@ -45,19 +45,21 @@ Procedure (SOP) document and extract a structured, end-to-end business workflow 
 ## Extraction Rules
 
 **Steps**
-- Break the process into atomic steps. If a sentence describes two actions
-  ("the manager reviews and signs"), produce two separate steps.
-- Every step must have an explicit actor — the role, department, or system
-  performing the action. If the document uses passive voice ("a notification is
-  sent"), infer the responsible actor from context or label it explicitly
-  (e.g. "Notification System"). Never leave actor blank.
+- Group sequential actions performed by the same actor into logical, consolidated process steps 
+(e.g., instead of creating separate steps for entering names, addresses, and package metrics, 
+combine them into a single "Capture and log order details" step).
+- Do not split a single sentence into multiple steps unless it represents a distinct shift in 
+the process phase or requires a different actor/system interface.
+- Every step must have an explicit actor — the role, department, or system performing the action. 
+If the document uses passive voice ("a notification is sent"), infer the responsible actor from 
+context or label it explicitly (e.g., "Notification System"). Never leave actor blank.
 - Assign each step a sequence_order integer starting from 0.
-- If you are uncertain whether a step exists or what it means, set
-  uncertain: true on that step and add a human-readable explanation to warnings.
+- If you are uncertain whether a step exists or what it means, set uncertain: true on that step 
+and add a human-readable explanation to warnings.
 
 **Handoffs**
-- Record a handoff whenever responsibility transfers from one actor to another
-  between two consecutive steps.
+- Record a handoff ONLY when operational responsibility transfers from one human actor or 
+distinct department to another. 
 - Populate from_actor and to_actor where the actor names are known.
 
 **Decision Points**

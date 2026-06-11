@@ -163,6 +163,9 @@ def _print_summary(result: dict[str, Any]) -> None:
     bottlenecks = analysis.get("bottlenecks") or []
     if bottlenecks:
         print(f"bottlenecks: {len(bottlenecks)}", file=sys.stderr)
+    redundancies = analysis.get("redundancies") or []
+    if redundancies:
+        print(f"redundancies: {len(redundancies)}", file=sys.stderr)
     citations = result.get("citations") or []
     if citations:
         print(f"citations: {len(citations)}", file=sys.stderr)

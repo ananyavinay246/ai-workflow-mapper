@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Prepare expense report", "actor_id": "employee", "duration": "30 minutes"},
+    {"id": "s2", "type": "task", "label": "Manager approval", "actor_id": "manager", "duration": "1 day"},
+    {"id": "s3", "type": "task", "label": "Finance approval", "actor_id": "finance", "duration": "2 days"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "s2"},
+    {"from": "s2", "to": "s3"},
+    {"from": "s3", "to": "__end__"}
+  ],
+  "actors": [
+    {"id": "employee", "name": "Employee", "kind": "role"},
+    {"id": "manager", "name": "Manager", "kind": "role"},
+    {"id": "finance", "name": "Finance", "kind": "role"}
+  ],
+  "swimlanes": []
+}

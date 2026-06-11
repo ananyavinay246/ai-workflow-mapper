@@ -19,6 +19,7 @@ from ai_workflow_mapper.workflow.domain import (
 from ai_workflow_mapper.workflow.extractor import ProcessExtractor
 from ai_workflow_mapper.workflow.graph_builder import ProcessGraphBuilder
 from ai_workflow_mapper.workflow.normalizer import InputNormalizer
+from ai_workflow_mapper.workflow.redundancy_analyzer import RedundancyAnalyzer
 
 from .models import JobInput
 
@@ -109,15 +110,30 @@ def process(job_input: JobInput) -> JobProcessResult:
     job_warnings: list[str] = []
 
     if process_graph is not None:
-        findings, citations, bn_warnings = BottleneckAnalyzer(llm_adapter).analyze(
+        bn_findings, bn_citations, bn_warnings = BottleneckAnalyzer(llm_adapter).analyze(
+            process_graph,
+            normalized,
+            job_input.options,
+            trace_id=job_input.request_id,
+        )
+        rd_findings, rd_citations, rd_warnings = RedundancyAnalyzer(llm_adapter).analyze(
             process_graph,
             normalized,
             job_input.options,
             trace_id=job_input.request_id,
         )
         job_warnings.extend(bn_warnings)
-        if findings:
-            analysis = AnalysisFindings(bottlenecks=findings)
+        job_warnings.extend(rd_warnings)
+
+        analysis_fields: dict[str, Any] = {}
+        if bn_findings:
+            analysis_fields["bottlenecks"] = bn_findings
+        if rd_findings:
+            analysis_fields["redundancies"] = rd_findings
+        if analysis_fields:
+            analysis = AnalysisFindings(**analysis_fields)
+
+        citations = bn_citations + rd_citations
 
         diagram_artifacts, diagram_warnings = MermaidDiagramGenerator().generate(
             process_graph,

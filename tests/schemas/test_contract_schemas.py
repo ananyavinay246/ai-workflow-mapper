@@ -85,6 +85,35 @@ def test_workflow_result_with_bottlenecks_validates(schema_store):
     validate_against_schema(data, "workflow_result.schema.json", schema_store)
 
 
+def test_workflow_result_with_redundancies_validates(schema_store):
+    data = {
+        "normalization_summary": {
+            "normalized_documents": 1,
+            "skipped_documents": 0,
+            "skipped": [],
+            "warnings": [],
+        },
+        "analysis": {
+            "redundancies": [
+                {
+                    "id": "rd-duplicate_system_entry-s1-s2",
+                    "name": "Duplicate data entry across systems",
+                    "description": "Order data entered into ERP and CRM.",
+                    "waste_estimate": "Approximately 30 minutes per process run.",
+                    "affected_steps": ["s1", "s2"],
+                    "evidence": [
+                        {
+                            "quote": "Enter customer order into ERP",
+                            "source_filename": "sop.txt",
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+    validate_against_schema(data, "workflow_result.schema.json", schema_store)
+
+
 def test_process_extraction_empty_validates(schema_store):
     validate_against_schema(
         {"steps": [], "handoffs": [], "warnings": []},

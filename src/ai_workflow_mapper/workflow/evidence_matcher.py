@@ -34,11 +34,13 @@ def find_evidence(
     *,
     node_id: str,
     label: str,
+    finding_kind: str = "bottleneck",
 ) -> tuple[list[Evidence], str | None]:
     """Return evidence items and optional warning when no quote is found."""
+    prefix = "bn" if finding_kind == "bottleneck" else "rd"
     needles = _search_needles(label)
     if not needles:
-        return [], f"No evidence needle for bottleneck bn-{node_id} (empty label)."
+        return [], f"No evidence needle for {finding_kind} {prefix}-{node_id} (empty label)."
 
     for doc in normalized.documents:
         if not doc.text or doc.char_count == 0:
@@ -62,7 +64,37 @@ def find_evidence(
                 )
             ], None
 
-    return [], f"No source quote found for bottleneck bn-{node_id}."
+    return [], f"No source quote found for {finding_kind} {prefix}-{node_id}."
+
+
+def find_evidence_for_steps(
+    normalized: NormalizedInput,
+    *,
+    step_ids: list[str],
+    labels_by_id: dict[str, str],
+    finding_id: str,
+    max_quotes: int = 2,
+) -> tuple[list[Evidence], list[str]]:
+    """Collect up to max_quotes grounded evidence items across affected steps."""
+    evidence: list[Evidence] = []
+    warnings: list[str] = []
+
+    for step_id in step_ids:
+        if len(evidence) >= max_quotes:
+            break
+        label = labels_by_id.get(step_id, "")
+        step_evidence, warning = find_evidence(
+            normalized,
+            node_id=step_id,
+            label=label,
+            finding_kind="redundancy",
+        )
+        if warning:
+            warnings.append(warning.replace(f"rd-{step_id}", finding_id))
+        if step_evidence:
+            evidence.extend(step_evidence)
+
+    return evidence, warnings
 
 
 def filter_grounded_evidence(

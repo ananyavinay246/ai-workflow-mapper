@@ -41,3 +41,8 @@
 
 - Added Kroki PNG export (`platform/local/kroki_client.py`): opt-in via `diagram_formats: ["png"]` or CLI `--png`.
 - Implemented Bottleneck Analyzer (`workflow/bottleneck_heuristics.py`, `workflow/evidence_matcher.py`, `workflow/bottleneck_analyzer.py`): deterministic graph heuristics after ProcessGraph build; document quote evidence; optional LLM narrative enrichment in `thorough` mode. Populates `result.analysis.bottlenecks` and top-level `JobOutput.citations`.
+
+6/10/2026:
+
+- Modified LLM prompt to consolidate steps in workflow, and improved heuristics to detect bottlenecks better.
+- Implemented Redundancy Detector (`workflow/label_similarity.py`, `workflow/redundancy_heuristics.py`, `workflow/redundancy_analyzer.py`): four spec-aligned redundancy signals after ProcessGraph build; document quote evidence; optional LLM enrichment in `thorough` mode. Populates `result.analysis.redundancies` and extends `JobOutput.citations`.

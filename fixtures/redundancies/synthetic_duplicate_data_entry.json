@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Enter customer order into ERP system", "actor_id": "ops", "tool": "ERP", "duration": "15 minutes"},
+    {"id": "s2", "type": "task", "label": "Log customer order in CRM database", "actor_id": "ops", "tool": "CRM", "duration": "15 minutes"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "s2"},
+    {"from": "s2", "to": "__end__"}
+  ],
+  "actors": [
+    {"id": "ops", "name": "Operations", "kind": "role"}
+  ],
+  "swimlanes": []
+}

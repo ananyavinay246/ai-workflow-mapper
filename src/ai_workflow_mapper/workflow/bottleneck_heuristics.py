@@ -16,6 +16,10 @@ _QUEUE_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 
+_AUTOMATED_KEYWORDS = re.compile(
+    r"\b(automated|automatically|system|instant|instantly|api|database|integration|terminal|web service|digital)\b",
+    re.IGNORECASE,
+)
 
 @dataclass
 class BottleneckCandidate:
@@ -51,21 +55,26 @@ def detect_bottleneck_candidates(graph: ProcessGraph) -> list[BottleneckCandidat
         if node.type not in _ANALYZABLE_TYPES:
             continue
 
+        is_automated = bool(_AUTOMATED_KEYWORDS.search(node.label))
         signals: list[str] = []
         indeg = in_degree.get(node.id, 0)
         outdeg = out_degree.get(node.id, 0)
         on_cp = node.id in critical_set
 
-        if indeg >= 2:
+        if indeg >= 3:
             signals.append(f"high_inbound_edges:{indeg}")
         if incoming_from_handoff.get(node.id):
             signals.append("handoff_inbound")
         if _QUEUE_KEYWORDS.search(node.label):
             signals.append("queue_keyword")
-        if on_cp and node.actor_id and cp_actors.get(node.actor_id, 0) == 1:
-            signals.append("single_point_of_failure")
-        if on_cp and outdeg >= 2:
+        if on_cp and node.actor_id and cp_actors.get(node.actor_id, 0) >= 3:
+            signals.append("overburdened_actor_constraint")
+        if on_cp and outdeg >= 3:
             signals.append("critical_path_hub")
+        if _QUEUE_KEYWORDS.search(node.label) and not is_automated:
+            signals.append("queue_keyword")
+        elif _QUEUE_KEYWORDS.search(node.label) and is_automated:
+            signals.append("automated_transaction")
 
         if not signals:
             continue
@@ -112,15 +121,21 @@ def candidate_to_finding(candidate: BottleneckCandidate) -> BottleneckFinding:
 
 def _severity(candidate: BottleneckCandidate) -> Severity:
     queue = "queue_keyword" in candidate.signals
-    spof = "single_point_of_failure" in candidate.signals
+    spof = "overburdened_actor_constraint" in candidate.signals
     handoff = "handoff_inbound" in candidate.signals
+    
+    # If it contains automated markers, cap its severity to Minor or skip
+    if "automated_transaction" in candidate.signals:
+        return "Minor"
 
-    if candidate.on_critical_path and (
-        queue or candidate.in_degree >= 3 or spof
-    ):
+    # Genuinely severe: A manual queueing step or overloaded actor on the critical path
+    if candidate.on_critical_path and (queue or spof):
         return "Critical"
-    if candidate.on_critical_path or candidate.in_degree >= 2 or handoff:
+        
+    # High convergence or manual handoffs across different teams
+    if candidate.in_degree >= 3 or handoff:
         return "Moderate"
+        
     return "Minor"
 
 
@@ -161,34 +176,56 @@ def _compute_degrees(
 
 
 def _longest_path(graph: ProcessGraph, node_by_id: dict) -> list[str]:
-    """Longest simple path from start to end (DFS with memo on DAG-ish graphs)."""
+    """Computes the longest path in a DAG using topological sorting."""
+    # 1. Build adjacency list and track in-degrees
     adjacency: dict[str, list[str]] = {n.id: [] for n in graph.nodes}
+    in_degree: dict[str, int] = {n.id: 0 for n in graph.nodes}
+    
     for edge in graph.edges:
         if edge.from_ in adjacency:
             adjacency[edge.from_].append(edge.to)
+            in_degree[edge.to] = in_degree.get(edge.to, 0) + 1
 
-    if _START_ID not in adjacency or _END_ID not in node_by_id:
+    # 2. Kahn's algorithm for Topological Sort
+    queue = [nid for nid in in_degree if in_degree[nid] == 0]
+    topo_order: list[str] = []
+    
+    while queue:
+        curr = queue.pop(0)
+        topo_order.append(curr)
+        for nxt in adjacency.get(curr, []):
+            in_degree[nxt] -= 1
+            if in_degree[nxt] == 0:
+                queue.append(nxt)
+
+    if _START_ID not in node_by_id or _END_ID not in node_by_id:
         return []
 
-    best_path: list[str] = []
+    # 3. Dynamic programming to find the longest path distances
+    # dist[v] stores the length of the longest path from _START_ID to v
+    dist = {nid: -float('inf') for nid in node_by_id}
+    parent = {nid: "" for nid in node_by_id}
+    dist[_START_ID] = 0
 
-    def dfs(node_id: str, path: list[str], visited: set[str]) -> None:
-        nonlocal best_path
-        if node_id == _END_ID:
-            if len(path) > len(best_path):
-                best_path = list(path)
-            return
-        if node_id in visited:
-            return
-        visited.add(node_id)
-        path.append(node_id)
-        for nxt in adjacency.get(node_id, []):
-            dfs(nxt, path, visited)
-        path.pop()
-        visited.remove(node_id)
+    for u in topo_order:
+        if dist[u] == -float('inf'):
+            continue
+        for v in adjacency.get(u, []):
+            if dist[u] + 1 > dist[v]:
+                dist[v] = dist[u] + 1
+                parent[v] = u
 
-    dfs(_START_ID, [], set())
-    return best_path
+    # 4. Reconstruct the path backwards from _END_ID
+    if dist[_END_ID] == -float('inf'):
+        return []  # End is unreachable from Start
+
+    path = []
+    curr = _END_ID
+    while curr:
+        path.append(curr)
+        curr = parent[curr]
+        
+    return path[::-1]   
 
 
 def _downstream_reach(graph: ProcessGraph) -> dict[str, int]:

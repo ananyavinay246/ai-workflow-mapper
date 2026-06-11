@@ -1,4 +1,4 @@
-"""Bottleneck Analyzer — graph heuristics, evidence, optional LLM enrichment."""
+"""Redundancy Analyzer — graph heuristics, evidence, optional LLM enrichment."""
 
 from __future__ import annotations
 
@@ -14,22 +14,17 @@ from ai_workflow_mapper.platform.contracts.llm_adapter import (
     LLMAdapterRequest,
     LLMAdapterStatus,
 )
-from ai_workflow_mapper.workflow.bottleneck_heuristics import (
-    candidate_to_finding,
-    detect_bottleneck_candidates,
-)
-from ai_workflow_mapper.workflow.domain import (
-    BottleneckFinding,
-    Evidence,
-    JobOptions,
-    ProcessGraph,
-)
+from ai_workflow_mapper.workflow.domain import Evidence, JobOptions, ProcessGraph, RedundancyFinding
 from ai_workflow_mapper.workflow.evidence_matcher import (
     filter_grounded_evidence,
     find_evidence,
 )
 from ai_workflow_mapper.workflow.extractor import _TRUST_CLOSE, _TRUST_OPEN
 from ai_workflow_mapper.workflow.normalizer import NormalizedInput
+from ai_workflow_mapper.workflow.redundancy_heuristics import (
+    candidate_to_finding,
+    detect_redundancy_candidates,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -41,18 +36,17 @@ _SYSTEM_CTX = LLMAdapterContext(
 )
 
 _ENRICHMENT_PROMPT_TEMPLATE = """\
-You are a process improvement analyst. Refine bottleneck findings using ONLY the
+You are a process improvement analyst. Refine redundancy findings using ONLY the
 provided graph-derived findings and document excerpts.
 
-CRITICAL: If a heuristic bottleneck finding is a false positive (e.g., it is fully 
-automated, instantaneous, or not an actual constraint based on the documents), 
-OMIT it from the final `bottlenecks` array entirely.
+CRITICAL: If a heuristic redundancy finding is a false positive based on the documents,
+OMIT it from the final `redundancies` array entirely.
 
 Return raw JSON only (no markdown fences) matching this schema:
 {schema_json}
 
-Preserve each valid bottleneck `id` exactly. Improve description, impact, and
-root_cause_hypothesis. Only include evidence quotes that appear verbatim in the excerpts.
+Preserve each valid redundancy `id` exactly. Improve description and waste_estimate.
+Only include evidence quotes that appear verbatim in the excerpts.
 """
 
 
@@ -66,15 +60,15 @@ def _load_enrichment_schema() -> dict:
     schema = json.loads(
         (_SCHEMAS_DIR / "analysis_findings.schema.json").read_text(encoding="utf-8")
     )
-    bottleneck_def = schema["$defs"]["bottleneck"]
+    redundancy_def = schema["$defs"]["redundancy"]
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["bottlenecks"],
+        "required": ["redundancies"],
         "properties": {
-            "bottlenecks": {
+            "redundancies": {
                 "type": "array",
-                "items": bottleneck_def,
+                "items": redundancy_def,
             }
         },
     }
@@ -84,8 +78,8 @@ def _wrap(text: str, source: str) -> str:
     return f"{_TRUST_OPEN}[source: {source}]\n{text}{_TRUST_CLOSE}"
 
 
-class BottleneckAnalyzer:
-    """Detect bottlenecks from a ProcessGraph and attach evidence."""
+class RedundancyAnalyzer:
+    """Detect redundancies from a ProcessGraph and attach evidence."""
 
     def __init__(self, adapter: LLMAdapterProtocol | None = None) -> None:
         self._adapter = adapter
@@ -96,22 +90,39 @@ class BottleneckAnalyzer:
         normalized: NormalizedInput,
         options: JobOptions,
         trace_id: str,
-    ) -> tuple[list[BottleneckFinding], list[dict], list[str]]:
+    ) -> tuple[list[RedundancyFinding], list[dict], list[str]]:
         """Return (findings, citation dicts, warnings). Never raises."""
         warnings: list[str] = []
-        candidates = detect_bottleneck_candidates(graph)
+        candidates, detect_warnings = detect_redundancy_candidates(graph)
+        warnings.extend(detect_warnings)
         if not candidates:
             return [], [], warnings
 
-        findings: list[BottleneckFinding] = []
+        findings: list[RedundancyFinding] = []
         for candidate in candidates:
-            finding = candidate_to_finding(candidate)
-            evidence, ev_warning = find_evidence(
-                normalized, node_id=candidate.node_id, label=candidate.label
-            )
-            if ev_warning:
-                warnings.append(ev_warning)
-            finding = finding.model_copy(update={"evidence": evidence})
+            finding = candidate_to_finding(candidate, graph)
+            step_evidence: list[Evidence] = []
+            ev_warnings: list[str] = []
+
+            for step_id in candidate.affected_step_ids:
+                label = candidate.step_labels.get(step_id, "")
+                quote, warning = find_evidence(
+                    normalized,
+                    node_id=step_id,
+                    label=label,
+                    finding_kind="redundancy",
+                )
+                if warning:
+                    ev_warnings.append(warning.replace(f"rd-{step_id}", finding.id))
+                if quote:
+                    step_evidence.extend(quote)
+                if len(step_evidence) >= 2:
+                    break
+
+            if ev_warnings:
+                warnings.extend(ev_warnings)
+
+            finding = finding.model_copy(update={"evidence": step_evidence})
             findings.append(finding)
 
         if options.mode == "thorough" and self._adapter is not None and findings:
@@ -122,7 +133,7 @@ class BottleneckAnalyzer:
 
         citations = _findings_to_citations(findings)
         _log.info(
-            "Bottleneck analysis complete [%s]: %d findings",
+            "Redundancy analysis complete [%s]: %d findings",
             trace_id,
             len(findings),
         )
@@ -130,16 +141,16 @@ class BottleneckAnalyzer:
 
     def _enrich_with_llm(
         self,
-        findings: list[BottleneckFinding],
+        findings: list[RedundancyFinding],
         normalized: NormalizedInput,
         options: JobOptions,
         trace_id: str,
-    ) -> tuple[list[BottleneckFinding], list[str]]:
+    ) -> tuple[list[RedundancyFinding], list[str]]:
         warnings: list[str] = []
         try:
             schema = _load_enrichment_schema()
         except Exception as exc:  # noqa: BLE001
-            warnings.append(f"Bottleneck LLM enrichment skipped: schema load failed: {exc}")
+            warnings.append(f"Redundancy LLM enrichment skipped: schema load failed: {exc}")
             return findings, warnings
 
         excerpts = "\n\n".join(
@@ -152,7 +163,7 @@ class BottleneckAnalyzer:
             indent=2,
         )
         user_content = (
-            f"Current bottleneck findings (heuristic):\n{payload}\n\n"
+            f"Current redundancy findings (heuristic):\n{payload}\n\n"
             f"{excerpts if excerpts else _wrap('No excerpts available.', 'documents')}"
         )
 
@@ -175,15 +186,15 @@ class BottleneckAnalyzer:
         if response.status != LLMAdapterStatus.succeeded:
             err = response.result.get("error", {})
             warnings.append(
-                f"Bottleneck LLM enrichment failed "
+                f"Redundancy LLM enrichment failed "
                 f"({err.get('error_code', 'unknown')}): "
                 f"{err.get('message', response.result)}. Using heuristic findings."
             )
             return findings, warnings
 
-        raw_list = response.result.get("structured_object", {}).get("bottlenecks", [])
+        raw_list = response.result.get("structured_object", {}).get("redundancies", [])
         by_id = {f.id: f for f in findings}
-        enriched: list[BottleneckFinding] = []
+        enriched: list[RedundancyFinding] = []
 
         for item in raw_list:
             fid = item.get("id")
@@ -193,47 +204,53 @@ class BottleneckAnalyzer:
             llm_evidence = [
                 Evidence.model_validate(e) for e in item.get("evidence", [])
             ]
-            evidence = filter_grounded_evidence(llm_evidence, normalized) if llm_evidence else base.evidence
+            evidence = (
+                filter_grounded_evidence(llm_evidence, normalized)
+                if llm_evidence
+                else base.evidence
+            )
             if not evidence:
                 evidence = base.evidence
             try:
                 enriched.append(
-                    BottleneckFinding(
+                    RedundancyFinding(
                         id=fid,
                         name=item.get("name") or base.name,
-                        severity=item.get("severity") or base.severity,
                         description=item.get("description") or base.description,
-                        impact=item.get("impact") or base.impact,
-                        root_cause_hypothesis=item.get("root_cause_hypothesis")
-                        or base.root_cause_hypothesis,
+                        waste_estimate=item.get("waste_estimate") or base.waste_estimate,
+                        affected_steps=item.get("affected_steps") or base.affected_steps,
                         evidence=evidence,
                     )
                 )
             except Exception as exc:  # noqa: BLE001
-                warnings.append(f"Could not parse enriched bottleneck {fid}: {exc}")
+                warnings.append(f"Could not parse enriched redundancy {fid}: {exc}")
                 enriched.append(base)
 
         if not enriched and findings:
-            _log.warning("LLM returned 0 bottlenecks. Falling back to all heuristic findings.")
+            _log.warning("LLM returned 0 redundancies. Falling back to all heuristic findings.")
             return findings, warnings
 
         return enriched, warnings
 
 
-def _findings_to_citations(findings: list[BottleneckFinding]) -> list[dict]:
+def _findings_to_citations(findings: list[RedundancyFinding]) -> list[dict]:
     citations: list[dict] = []
     for finding in findings:
-        node_id = finding.id.removeprefix("bn-")
-        for ev in finding.evidence:
-            citations.append(
-                {
-                    "source_filename": ev.source_filename,
-                    "quote": ev.quote,
-                    "trust_level": "untrusted",
-                    "char_start": ev.char_start,
-                    "char_end": ev.char_end,
-                    "node_id": node_id,
-                    "finding_id": finding.id,
-                }
-            )
+        for idx, ev in enumerate(finding.evidence):
+            node_id = None
+            if finding.affected_steps:
+                node_id = finding.affected_steps[min(idx, len(finding.affected_steps) - 1)]
+            citations.append(_citation_dict(finding.id, node_id or "", ev))
     return citations
+
+
+def _citation_dict(finding_id: str, node_id: str, ev: Evidence) -> dict:
+    return {
+        "source_filename": ev.source_filename,
+        "quote": ev.quote,
+        "trust_level": "untrusted",
+        "char_start": ev.char_start,
+        "char_end": ev.char_end,
+        "node_id": node_id,
+        "finding_id": finding_id,
+    }

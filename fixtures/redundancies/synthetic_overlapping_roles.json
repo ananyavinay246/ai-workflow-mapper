@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Review submitted application package", "actor_id": "hr", "duration": "1 hour"},
+    {"id": "s2", "type": "task", "label": "Review submitted application package", "actor_id": "recruiter", "duration": "1 hour"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "s2"},
+    {"from": "s2", "to": "__end__"}
+  ],
+  "actors": [
+    {"id": "hr", "name": "HR", "kind": "role"},
+    {"id": "recruiter", "name": "Recruiter", "kind": "role"}
+  ],
+  "swimlanes": []
+}

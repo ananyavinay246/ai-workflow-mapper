@@ -31,6 +31,7 @@ where = ["src"]
 
 [project.scripts]
 workflow-mapper-submit = "ai_workflow_mapper.cli.submit_job:main"
+workflow-mapper-analyze-bottlenecks = "ai_workflow_mapper.cli.analyze_bottlenecks:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

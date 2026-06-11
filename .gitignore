@@ -41,3 +41,8 @@ outputs/
 *.docx
 *.txt
 *.mmd
+*.png
+artifacts/
+
+# Other
+mermaid_parser.py

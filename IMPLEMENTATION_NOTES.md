@@ -197,7 +197,7 @@ Quotes are never invented.
 `root_cause_hypothesis`. LLM-supplied quotes are post-validated against normalized documents;
 ungrounded quotes are dropped. On LLM failure, heuristic findings are preserved with a warning.
 
-**Partial analysis output:** Only `analysis.bottlenecks` is populated; other
+**Partial analysis output:** Only populated analysis sections are included; other
 `analysis_findings` sections are omitted from serialized output.
 
 **Known limitations:** In-degree may be inflated when the graph builder emits redundant
@@ -206,6 +206,43 @@ is deferred to a follow-up slice.
 
 **Processor return type:** `process()` returns `JobProcessResult(result, artifacts, citations, warnings)`.
 Bottleneck warnings are job-level (`JobOutput.warnings`).
+
+### Redundancy Detector
+
+After `ProcessGraphBuilder`, when `process_graph` is non-empty, the processor runs
+`RedundancyAnalyzer` (`workflow/redundancy_analyzer.py`) using graph/text heuristics
+(`workflow/redundancy_heuristics.py`, `workflow/label_similarity.py`) and document quote
+matching (`workflow/evidence_matcher.py`).
+
+**Activation:** Same gate as Bottleneck Analyzer. No new `job_options` flag; `mode` controls
+LLM depth only.
+
+**Detection (deterministic):**
+
+- **Duplicate approval steps:** consecutive task/decision nodes whose labels match approval/review keywords
+- **Duplicate system entry:** pairs of data-entry steps with different `tool` values and shared data-subject tokens (`customer`, `order`, `invoice`, …)
+- **Duplicate information requests:** same `actor_id`, label Jaccard similarity ≥ 0.65, excluding consecutive duplicate-approval pairs
+- **Overlapping roles:** different `actor_id`, both tasks, label similarity ≥ 0.75
+
+**Waste estimate:** Template string sums parsed `duration` metadata across affected steps when
+available; otherwise a non-numeric fallback. LLM may refine to per week/month in `thorough` mode.
+
+**Evidence:** Reuses generalized `find_evidence(..., finding_kind="redundancy")`. Up to two
+quotes per finding (one per affected step). Quotes are never invented.
+
+**Citations:** Each evidence item is promoted to `JobOutput.citations[]` with
+`finding_id=rd-...`, `node_id` from the affected step, and `trust_level="untrusted"`.
+
+**LLM enrichment (`thorough` mode only):** Refines `description` and `waste_estimate`; may
+omit false positives. Ungrounded LLM quotes are dropped post-validation.
+
+**Pairwise cap:** Graphs with more than 500 analyzable nodes skip pairwise redundancy rules and
+emit an analyzer warning.
+
+**Partial analysis output:** `analysis.bottlenecks` and `analysis.redundancies` are populated
+independently; empty sections are omitted from serialized output.
+
+**Standalone debug CLI:** `python -m ai_workflow_mapper.cli.analyze_bottlenecks --redundancies --pretty flowchart.mmd`
 
 ### API — No LLM Call When `LLM_API_KEY` Not Set
 

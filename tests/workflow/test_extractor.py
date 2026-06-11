@@ -243,7 +243,7 @@ def test_cost_limit_default_when_not_set():
     ProcessExtractor(adapter).extract(normalized, trace_id="t10")
 
     call_input = adapter.handle.call_args[0][0].input
-    assert call_input["cost_limit_usd"] == pytest.approx(0.5)
+    assert call_input["cost_limit_usd"] == pytest.approx(1.0)
 
 
 # ---------------------------------------------------------------------------
