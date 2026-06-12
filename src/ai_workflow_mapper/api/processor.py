@@ -20,6 +20,8 @@ from ai_workflow_mapper.workflow.extractor import ProcessExtractor
 from ai_workflow_mapper.workflow.graph_builder import ProcessGraphBuilder
 from ai_workflow_mapper.workflow.normalizer import InputNormalizer
 from ai_workflow_mapper.workflow.automation_analyzer import AutomationAnalyzer
+from ai_workflow_mapper.workflow.report_data_builder import ReportDataBuilder
+from ai_workflow_mapper.workflow.report_generator import ReportGenerator
 from ai_workflow_mapper.workflow.redundancy_analyzer import RedundancyAnalyzer
 
 from .models import JobInput
@@ -154,6 +156,25 @@ def process(job_input: JobInput) -> JobProcessResult:
         )
         artifacts = [a.model_dump(mode="json", exclude_none=True) for a in diagram_artifacts]
         job_warnings.extend(diagram_warnings)
+
+    if job_input.options.output_format in ("markdown", "docx", "pdf"):
+        report_build = ReportDataBuilder().build(
+            process_graph,
+            analysis,
+            summary,
+            job_input.options,
+            job_id=job_input.request_id,
+        )
+        analysis = report_build.findings
+        report_artifact, report_warnings = ReportGenerator().generate(
+            report_build.template_data,
+            report_build.metadata,
+            job_input.options.output_format,
+            job_input.request_id,
+        )
+        job_warnings.extend(report_warnings)
+        if report_artifact is not None:
+            artifacts.append(report_artifact.model_dump(mode="json", exclude_none=True))
 
     result = WorkflowResult(
         normalization_summary=summary,

@@ -1,3 +1,4 @@
+import base64
 import time
 from pathlib import Path
 from typing import Any
@@ -13,10 +14,12 @@ from ai_workflow_mapper.platform.contracts.report_renderer import (
     ReportRendererResponse,
     ReportRendererStatus,
 )
+from ai_workflow_mapper.platform.local.report_docx_builder import build_report_docx
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
-_SUPPORTED_FORMATS = {"markdown"}
+_SUPPORTED_FORMATS = {"markdown", "docx", "pdf"}
 _TEMPLATE_VERSION = "0.1.0"
+_BINARY_FORMATS = {"docx", "pdf"}
 
 
 class ReportRendererModuleError(Exception):
@@ -70,10 +73,6 @@ class LocalReportRenderer:
     def get_config(self) -> ReportRendererConfig:
         return self._config
 
-    # ------------------------------------------------------------------
-    # Dispatch
-    # ------------------------------------------------------------------
-
     def _dispatch(
         self, request: ReportRendererRequest
     ) -> tuple[dict[str, Any], list[str]]:
@@ -86,9 +85,59 @@ class LocalReportRenderer:
             return self._validate_template(request.input, request.trace_id)
         raise ValueError(f"Unknown operation: {op}")
 
-    # ------------------------------------------------------------------
-    # Operations
-    # ------------------------------------------------------------------
+    def _render_markdown(
+        self,
+        data: dict[str, Any],
+        metadata: dict[str, Any],
+        template_id: str,
+    ) -> str:
+        template_file = f"{template_id}.md.j2"
+        template = self._env.get_template(template_file)
+        return template.render(
+            data=data,
+            metadata=metadata,
+            template_id=template_id,
+            template_version=_TEMPLATE_VERSION,
+        )
+
+    def _render_pdf(self, markdown_content: str) -> tuple[bytes, list[str]]:
+        warnings: list[str] = []
+        try:
+            import markdown as md_lib
+        except ImportError as exc:
+            raise ReportRendererModuleError(
+                ReportRendererError(
+                    operation=ReportRendererOperation.render_report,
+                    error_code=ReportRendererErrorCode.render_failed,
+                    message="PDF export requires the markdown package",
+                    retryable=False,
+                    trace_id="",
+                )
+            ) from exc
+
+        try:
+            from weasyprint import HTML
+        except ImportError as exc:
+            raise ReportRendererModuleError(
+                ReportRendererError(
+                    operation=ReportRendererOperation.render_report,
+                    error_code=ReportRendererErrorCode.render_failed,
+                    message=(
+                        "PDF export unavailable; install report-pdf extras "
+                        "(pip install ai-workflow-mapper[report-pdf]) or use markdown/docx"
+                    ),
+                    retryable=False,
+                    trace_id="",
+                )
+            ) from exc
+
+        html_body = md_lib.markdown(markdown_content, extensions=["tables"])
+        html_doc = (
+            "<!DOCTYPE html><html><head><meta charset='utf-8'></head>"
+            f"<body>{html_body}</body></html>"
+        )
+        pdf_bytes = HTML(string=html_doc).write_pdf()
+        return pdf_bytes, warnings
 
     def _render_report(
         self, inp: dict[str, Any], trace_id: str
@@ -108,7 +157,7 @@ class LocalReportRenderer:
         template_id: str = inp.get("template_id", "report")
         template_file = f"{template_id}.md.j2"
         try:
-            template = self._env.get_template(template_file)
+            self._env.get_template(template_file)
         except jinja2.TemplateNotFound:
             raise ReportRendererModuleError(
                 ReportRendererError(
@@ -122,13 +171,65 @@ class LocalReportRenderer:
 
         data: dict[str, Any] = inp.get("data", {})
         metadata: dict[str, Any] = inp.get("metadata", {})
+
+        if fmt == "markdown":
+            try:
+                content = self._render_markdown(data, metadata, template_id)
+            except jinja2.UndefinedError as exc:
+                raise ReportRendererModuleError(
+                    ReportRendererError(
+                        operation=ReportRendererOperation.render_report,
+                        error_code=ReportRendererErrorCode.render_failed,
+                        message=f"Template rendering failed: {exc}",
+                        retryable=False,
+                        trace_id=trace_id,
+                    )
+                ) from exc
+            except jinja2.TemplateError as exc:
+                raise ReportRendererModuleError(
+                    ReportRendererError(
+                        operation=ReportRendererOperation.render_report,
+                        error_code=ReportRendererErrorCode.render_failed,
+                        message=f"Template rendering failed: {exc}",
+                        retryable=False,
+                        trace_id=trace_id,
+                    )
+                ) from exc
+            return {
+                "content": content,
+                "format": fmt,
+                "template_id": template_id,
+                "template_version": _TEMPLATE_VERSION,
+                "char_count": len(content),
+            }, []
+
+        if fmt == "docx":
+            try:
+                raw = build_report_docx(data, metadata)
+            except Exception as exc:  # noqa: BLE001
+                raise ReportRendererModuleError(
+                    ReportRendererError(
+                        operation=ReportRendererOperation.render_report,
+                        error_code=ReportRendererErrorCode.render_failed,
+                        message=f"DOCX rendering failed: {exc}",
+                        retryable=False,
+                        trace_id=trace_id,
+                    )
+                ) from exc
+            return {
+                "content_b64": base64.b64encode(raw).decode("ascii"),
+                "format": fmt,
+                "template_id": template_id,
+                "template_version": _TEMPLATE_VERSION,
+                "byte_count": len(raw),
+            }, []
+
+        # pdf
         try:
-            content = template.render(
-                data=data,
-                metadata=metadata,
-                template_id=template_id,
-                template_version=_TEMPLATE_VERSION,
-            )
+            markdown_content = self._render_markdown(data, metadata, template_id)
+            raw, pdf_warnings = self._render_pdf(markdown_content)
+        except ReportRendererModuleError:
+            raise
         except jinja2.UndefinedError as exc:
             raise ReportRendererModuleError(
                 ReportRendererError(
@@ -139,29 +240,27 @@ class LocalReportRenderer:
                     trace_id=trace_id,
                 )
             ) from exc
-        except jinja2.TemplateError as exc:
+        except Exception as exc:  # noqa: BLE001
             raise ReportRendererModuleError(
                 ReportRendererError(
                     operation=ReportRendererOperation.render_report,
                     error_code=ReportRendererErrorCode.render_failed,
-                    message=f"Template rendering failed: {exc}",
+                    message=f"PDF rendering failed: {exc}",
                     retryable=False,
                     trace_id=trace_id,
                 )
             ) from exc
-
         return {
-            "content": content,
+            "content_b64": base64.b64encode(raw).decode("ascii"),
             "format": fmt,
             "template_id": template_id,
             "template_version": _TEMPLATE_VERSION,
-            "char_count": len(content),
-        }, []
+            "byte_count": len(raw),
+        }, pdf_warnings
 
     def _export_artifact(
         self, inp: dict[str, Any], trace_id: str
     ) -> tuple[dict[str, Any], list[str]]:
-        content: str = inp.get("content", "")
         filename: str = inp.get("filename", "report.md")
         fmt: str = inp.get("format", "markdown")
 
@@ -176,10 +275,33 @@ class LocalReportRenderer:
                 )
             )
 
+        content_bytes: bytes | None = None
+        if "content_b64" in inp:
+            content_bytes = base64.b64decode(inp["content_b64"])
+        elif isinstance(inp.get("content_bytes"), (bytes, bytearray)):
+            content_bytes = bytes(inp["content_bytes"])
+        elif fmt in _BINARY_FORMATS:
+            raise ReportRendererModuleError(
+                ReportRendererError(
+                    operation=ReportRendererOperation.export_artifact,
+                    error_code=ReportRendererErrorCode.artifact_write_failed,
+                    message="Binary export requires content_b64 or content_bytes",
+                    retryable=False,
+                    trace_id=trace_id,
+                )
+            )
+
+        content: str = inp.get("content", "")
+
         try:
             self._output_dir.mkdir(parents=True, exist_ok=True)
             artifact_path = self._output_dir / filename
-            artifact_path.write_text(content, encoding="utf-8")
+            if content_bytes is not None:
+                artifact_path.write_bytes(content_bytes)
+                size = len(content_bytes)
+            else:
+                artifact_path.write_text(content, encoding="utf-8")
+                size = len(content.encode("utf-8"))
         except OSError as exc:
             raise ReportRendererModuleError(
                 ReportRendererError(
@@ -193,13 +315,14 @@ class LocalReportRenderer:
 
         return {
             "artifact_path": str(artifact_path),
-            "size_bytes": artifact_path.stat().st_size,
+            "size_bytes": size,
             "format": fmt,
         }, []
 
     def _validate_template(
         self, inp: dict[str, Any], trace_id: str
     ) -> tuple[dict[str, Any], list[str]]:
+        _ = trace_id
         template_id: str = inp.get("template_id", "report")
         template_file = f"{template_id}.md.j2"
         errors: list[str] = []
@@ -214,10 +337,6 @@ class LocalReportRenderer:
             errors.append(f"Syntax error in '{template_file}': {exc}")
 
         return {"template_id": template_id, "valid": valid, "errors": errors}, []
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _make_metadata(self, t0: float) -> dict[str, Any]:
         return {

@@ -14,7 +14,7 @@ import httpx
 
 from ai_workflow_mapper.api.models import JobInput
 from ai_workflow_mapper.api.processor import JobProcessResult, process
-from ai_workflow_mapper.workflow.domain import InputDocument, JobMode, JobOptions, SourceType, WorkflowInput
+from ai_workflow_mapper.workflow.domain import InputDocument, JobMode, JobOptions, OutputFormat, SourceType, WorkflowInput
 
 _SUPPORTED_EXTENSIONS = {".txt", ".md", ".json", ".pdf", ".docx"}
 
@@ -87,6 +87,7 @@ def build_job_input(
     mermaid: bool = False,
     png: bool = False,
     recursive: bool = False,
+    output_format: OutputFormat = "json",
 ) -> JobInput:
     documents: list[InputDocument] = []
     for path in _expand_input_paths(paths, recursive=recursive):
@@ -105,7 +106,7 @@ def build_job_input(
             )
         )
 
-    options = JobOptions(mode=mode)
+    options = JobOptions(mode=mode, output_format=output_format)
     updates: dict[str, Any] = {}
     if max_cost_usd is not None:
         updates["max_cost_usd"] = max_cost_usd
@@ -174,10 +175,16 @@ def _print_summary(result: dict[str, Any]) -> None:
         print(f"citations: {len(citations)}", file=sys.stderr)
     artifacts = result.get("artifacts") or []
     if artifacts:
-        types = ", ".join(
-            f"{a.get('diagram_type', 'diagram')} ({a.get('path', '')})" for a in artifacts
-        )
-        print(f"artifacts: {len(artifacts)} ({types})", file=sys.stderr)
+        parts = []
+        for a in artifacts:
+            kind = a.get("type", "diagram")
+            if kind == "report":
+                parts.append(f"report/{a.get('format', 'markdown')} ({a.get('path', '')})")
+            else:
+                parts.append(f"{a.get('diagram_type', 'diagram')} ({a.get('path', '')})")
+        print(f"artifacts: {len(artifacts)} ({', '.join(parts)})", file=sys.stderr)
+    if analysis.get("executive_summary"):
+        print("report: analysis sections populated (executive_summary present)", file=sys.stderr)
     warnings = summary.get("warnings") or result.get("warnings") or []
     for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)
@@ -258,6 +265,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write full JSON response to this file",
     )
     parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Generate analysis report artifact (sets output_format=markdown)",
+    )
+    parser.add_argument(
+        "--report-format",
+        choices=["markdown", "docx", "pdf"],
+        dest="report_format",
+        help="Report output format (implies --report unless output_format is set)",
+    )
+    parser.add_argument(
         "--pretty",
         action="store_true",
         help="Pretty-print JSON to stdout",
@@ -272,6 +290,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    report_format: OutputFormat = "json"
+    if args.report_format:
+        report_format = args.report_format
+    elif args.report:
+        report_format = "markdown"
+
     try:
         job_input = build_job_input(
             args.files,
@@ -283,6 +307,7 @@ def main(argv: list[str] | None = None) -> int:
             mermaid=args.mermaid,
             png=args.png,
             recursive=args.recursive,
+            output_format=report_format,
         )
     except (FileNotFoundError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)

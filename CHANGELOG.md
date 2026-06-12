@@ -51,3 +51,7 @@
 
 - Implemented Automation Opportunity Scorer (`workflow/automation_heuristics.py`, `workflow/automation_analyzer.py`): five spec-aligned automation signals with ROI ranking after ProcessGraph build; document quote evidence; optional LLM enrichment in `thorough` mode. Populates `result.analysis.automation_opportunities` and extends `JobOutput.citations`.
 - Fixed `thorough`-mode enrichment schema validation: include `$defs/evidence` in narrow output schemas so `#/$defs/evidence` resolves without a RefResolver.
+
+6/12/2026:
+
+- Implemented Analysis Report Generator (`workflow/report_data_builder.py`, `workflow/report_generator.py`): assembles all seven report sections, renders via `LocalReportRenderer` (Markdown/DOCX/PDF), attaches `type=report` artifacts. Activated by `JobOptions.output_format` or CLI `--report` / `--report-format`.

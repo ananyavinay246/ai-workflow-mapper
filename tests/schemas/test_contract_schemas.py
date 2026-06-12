@@ -145,6 +145,41 @@ def test_workflow_result_with_automation_opportunities_validates(schema_store):
     validate_against_schema(data, "workflow_result.schema.json", schema_store)
 
 
+def test_workflow_result_with_full_report_sections_validates(schema_store):
+    data = {
+        "normalization_summary": {
+            "normalized_documents": 1,
+            "skipped_documents": 0,
+            "skipped": [],
+            "warnings": [],
+        },
+        "analysis": {
+            "executive_summary": "One-page overview of process health.",
+            "processes": [{"name": "Submit form", "owner": "Clerk"}],
+            "bottlenecks": [
+                {
+                    "id": "bn-1",
+                    "name": "Approval",
+                    "severity": "Moderate",
+                    "description": "Slow queue.",
+                }
+            ],
+            "redundancies": [
+                {
+                    "id": "rd-1",
+                    "name": "Duplicate entry",
+                    "description": "Same data twice.",
+                }
+            ],
+            "automation_opportunities": [
+                {"id": "ao-1", "name": "Notify customer", "effort": "Low", "priority": "1"}
+            ],
+            "next_steps": ["Fix approval queue", "Automate notifications"],
+        },
+    }
+    validate_against_schema(data, "workflow_result.schema.json", schema_store)
+
+
 def test_process_extraction_empty_validates(schema_store):
     validate_against_schema(
         {"steps": [], "handoffs": [], "warnings": []},

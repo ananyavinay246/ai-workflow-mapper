@@ -10,6 +10,15 @@
       "warnings": []
     },
     "analysis": {
+      "executive_summary": "Workflow analysis summary with human review required before action.",
+      "processes": [
+        {
+          "name": "Receive request",
+          "owner": "Agent",
+          "duration": "1 hour",
+          "frequency": "Daily"
+        }
+      ],
       "bottlenecks": [
         {
           "id": "bn-s2",
@@ -59,6 +68,11 @@
             }
           ]
         }
+      ],
+      "next_steps": [
+        "Address critical bottleneck: Review and approve request.",
+        "Consolidate redundant work: Duplicate data entry across systems.",
+        "Implement automation candidate: Send confirmation email to customer."
       ]
     }
   },
@@ -98,6 +112,14 @@
       "description": "Process flowchart (Mermaid)",
       "content": "flowchart TD\n  n___start__([Start])\n  s1[Receive request]\n  n___end__([End])\n  n___start__ --> s1\n  s1 --> n___end__",
       "checksum": "sha256:synthetic"
+    },
+    {
+      "path": "artifacts/job-example-ai_workflow_mapper-001/report.md",
+      "type": "report",
+      "format": "markdown",
+      "mime_type": "text/markdown",
+      "description": "Workflow analysis report (markdown)",
+      "checksum": "sha256:synthetic-report"
     }
   ],
   "metadata": {

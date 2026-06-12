@@ -77,7 +77,12 @@ def test_render_report_markdown_happy(tmp_path):
     resp = renderer.handle(
         _make_request(
             ReportRendererOperation.render_report,
-            {"data": _SAMPLE_DATA, "template_id": "report", "format": "markdown"},
+            {
+                "data": _SAMPLE_DATA,
+                "metadata": {"job_id": "test", "normalized_documents": 1, "skipped_documents": 0},
+                "template_id": "report",
+                "format": "markdown",
+            },
         )
     )
     assert resp.status.value == "succeeded"
@@ -94,7 +99,7 @@ def test_render_report_unsupported_format(tmp_path):
     resp = renderer.handle(
         _make_request(
             ReportRendererOperation.render_report,
-            {"data": _SAMPLE_DATA, "template_id": "report", "format": "pdf"},
+            {"data": _SAMPLE_DATA, "template_id": "report", "format": "html"},
         )
     )
     assert resp.status.value == "failed"
@@ -128,6 +133,88 @@ def test_render_report_custom_template(tmp_path):
     )
     assert resp.status.value == "succeeded"
     assert resp.result["content"] == "Hello World!"
+
+
+def test_render_report_docx_happy(tmp_path):
+    renderer = _make_renderer(tmp_path)
+    resp = renderer.handle(
+        _make_request(
+            ReportRendererOperation.render_report,
+            {"data": _SAMPLE_DATA, "template_id": "report", "format": "docx"},
+        )
+    )
+    assert resp.status.value == "succeeded"
+    assert resp.result["format"] == "docx"
+    assert "content_b64" in resp.result
+    assert resp.result["byte_count"] > 0
+
+
+def test_export_artifact_docx_binary(tmp_path):
+    renderer = _make_renderer(tmp_path)
+    render = renderer.handle(
+        _make_request(
+            ReportRendererOperation.render_report,
+            {"data": _SAMPLE_DATA, "template_id": "report", "format": "docx"},
+        )
+    )
+    resp = renderer.handle(
+        _make_request(
+            ReportRendererOperation.export_artifact,
+            {
+                "content_b64": render.result["content_b64"],
+                "filename": "report.docx",
+                "format": "docx",
+            },
+        )
+    )
+    assert resp.status.value == "succeeded"
+    path = Path(resp.result["artifact_path"])
+    assert path.exists()
+    assert path.suffix == ".docx"
+    assert path.stat().st_size > 0
+
+
+def test_render_report_pdf_unavailable_without_weasyprint(tmp_path, monkeypatch):
+    renderer = _make_renderer(tmp_path)
+
+    def _raise_weasyprint(*_args, **_kwargs):
+        raise ImportError("no weasyprint")
+
+    monkeypatch.setitem(__import__("sys").modules, "weasyprint", None)
+
+    import ai_workflow_mapper.platform.local.report_renderer as rr_mod
+
+    original_render_pdf = rr_mod.LocalReportRenderer._render_pdf
+
+    def _patched_render_pdf(self, markdown_content: str):
+        raise rr_mod.ReportRendererModuleError(
+            rr_mod.ReportRendererError(
+                operation=ReportRendererOperation.render_report,
+                error_code=rr_mod.ReportRendererErrorCode.render_failed,
+                message=(
+                    "PDF export unavailable; install report-pdf extras "
+                    "(pip install ai-workflow-mapper[report-pdf]) or use markdown/docx"
+                ),
+                retryable=False,
+                trace_id="",
+            )
+        )
+
+    monkeypatch.setattr(rr_mod.LocalReportRenderer, "_render_pdf", _patched_render_pdf)
+    resp = renderer.handle(
+        _make_request(
+            ReportRendererOperation.render_report,
+            {
+                "data": _SAMPLE_DATA,
+                "metadata": {"job_id": "test", "normalized_documents": 1, "skipped_documents": 0},
+                "template_id": "report",
+                "format": "pdf",
+            },
+        )
+    )
+    assert resp.status.value == "failed"
+    assert "PDF export unavailable" in resp.result["error"]["message"]
+    monkeypatch.setattr(rr_mod.LocalReportRenderer, "_render_pdf", original_render_pdf)
 
 
 # ---------------------------------------------------------------------------

@@ -285,6 +285,38 @@ omit `automation_opportunities` and append job warning:
 **Standalone debug CLI:**
 `python -m ai_workflow_mapper.cli.analyze_bottlenecks --automation --pretty flowchart.mmd`
 
+### Analysis Report Generator
+
+When `JobOptions.output_format` is `markdown`, `docx`, or `pdf`, the processor runs
+`ReportDataBuilder` (`workflow/report_data_builder.py`) and `ReportGenerator`
+(`workflow/report_generator.py`) after analysis completes.
+
+**Activation:** `output_format != "json"` (default `json` skips report generation). CLI:
+`--report` sets `markdown`; `--report-format {markdown,docx,pdf}` selects format.
+
+**Data assembly (deterministic):**
+
+- `executive_summary` — document/step/finding counts, top bottlenecks and automation opportunities, human-review disclaimer
+- `processes[]` — task/decision nodes from `process_graph` with actor names
+- `next_steps[]` — 5–10 ranked action bullets from findings and skipped documents
+- Analyzer sections (`bottlenecks`, `redundancies`, `automation_opportunities`) pass through unchanged
+
+Populated fields are merged into `WorkflowResult.analysis` before serialization.
+
+**Rendering:** Uses `LocalReportRenderer` (`platform/local/report_renderer.py`):
+
+- **Markdown** — Jinja template [`report.md.j2`](src/ai_workflow_mapper/platform/local/templates/report.md.j2)
+- **DOCX** — `report_docx_builder.py` via `python-docx`
+- **PDF** — Markdown intermediate → HTML (`markdown` package) → WeasyPrint (optional extra `report-pdf`); on missing WeasyPrint, job warning and no PDF artifact (job still succeeds)
+
+**Artifacts:** `{type: "report", format, path: "artifacts/{job_id}/report.*", checksum}` on
+`JobOutput.artifacts[]`. Inline `content` included for markdown only.
+
+**Empty graph:** Report still generated with normalization summary and empty inventory when
+extraction fails but report format is requested.
+
+**Out of scope:** LLM-written executive summary, Notion/Confluence export, embedding diagram PNGs in report body.
+
 ### API — No LLM Call When `LLM_API_KEY` Not Set
 
 `processor.py` checks `os.environ.get("LLM_API_KEY")` before constructing `LocalLLMAdapter`. When

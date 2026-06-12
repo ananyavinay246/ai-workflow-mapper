@@ -1,22 +1,23 @@
 # Workflow Analysis Report
 
-**Generated:** {{ metadata.generated_at | default("N/A") }}
-**Job ID:** {{ metadata.job_id | default("N/A") }}
+**Generated:** {{ metadata.get("generated_at", "N/A") }}
+**Job ID:** {{ metadata.get("job_id", "N/A") }}
+**Documents:** {{ metadata.get("normalized_documents", 0) }} normalized{% if metadata.get("skipped_documents", 0) %}, {{ metadata.get("skipped_documents") }} skipped{% endif %}
 
 ---
 
 ## Executive Summary
 
-{{ data.executive_summary | default("No summary provided.") }}
+{{ data.get("executive_summary", "No summary provided.") }}
 
 ---
 
 ## Process Inventory
 
-{% if data.processes %}
+{% if data.get("processes") %}
 | # | Process Name | Owner | Duration | Frequency |
 |---|-------------|-------|----------|-----------|
-{% for p in data.processes %}| {{ loop.index }} | {{ p.name }} | {{ p.owner | default("—") }} | {{ p.duration | default("—") }} | {{ p.frequency | default("—") }} |
+{% for p in data.processes %}| {{ loop.index }} | {{ p.get("name", "") }} | {{ p.get("owner", "—") }} | {{ p.get("duration", "—") }} | {{ p.get("frequency", "—") }} |
 {% endfor %}
 {% else %}
 _No processes identified._
@@ -26,13 +27,20 @@ _No processes identified._
 
 ## Bottleneck Analysis
 
-{% if data.bottlenecks %}
+{% if data.get("bottlenecks") %}
 {% for b in data.bottlenecks %}
-### {{ b.name }} — Severity: {{ b.severity }}
+### {{ b.get("name", "Bottleneck") }} — Severity: {{ b.get("severity", "Unknown") }}
 
-{{ b.description }}
+{{ b.get("description", "") }}
 
-**Impact:** {{ b.impact | default("Unknown") }}
+**Impact:** {{ b.get("impact", "Unknown") }}
+
+{% if b.get("root_cause_hypothesis") %}
+**Root cause hypothesis:** {{ b.get("root_cause_hypothesis") }}
+{% endif %}
+{% if b.get("evidence") %}
+**Evidence:** {% for e in b.evidence %}"{{ e.get("quote", "") }}" ({{ e.get("source_filename", "") }}){% if not loop.last %}; {% endif %}{% endfor %}
+{% endif %}
 
 {% endfor %}
 {% else %}
@@ -43,13 +51,16 @@ _No bottlenecks detected._
 
 ## Redundancy Analysis
 
-{% if data.redundancies %}
+{% if data.get("redundancies") %}
 {% for r in data.redundancies %}
-### {{ r.name }}
+### {{ r.get("name", "Redundancy") }}
 
-{{ r.description }}
+{{ r.get("description", "") }}
 
-**Affected steps:** {{ r.affected_steps | join(", ") | default("N/A") }}
+{% if r.get("waste_estimate") %}
+**Waste estimate:** {{ r.get("waste_estimate") }}
+{% endif %}
+**Affected steps:** {{ r.get("affected_steps", []) | join(", ") or "N/A" }}
 
 {% endfor %}
 {% else %}
@@ -60,10 +71,16 @@ _No redundancies detected._
 
 ## Automation Opportunity Matrix
 
-{% if data.automation_opportunities %}
+{% if data.get("automation_opportunities") %}
 | Opportunity | Effort | ROI | Priority |
 |-------------|--------|-----|----------|
-{% for a in data.automation_opportunities %}| {{ a.name }} | {{ a.effort | default("—") }} | {{ a.roi | default("—") }} | {{ a.priority | default("—") }} |
+{% for a in data.automation_opportunities %}| {{ a.get("name", "") }} | {{ a.get("effort", "—") }} | {{ a.get("roi", "—") }} | {{ a.get("priority", "—") }} |
+{% endfor %}
+
+{% for a in data.automation_opportunities %}
+{% if a.get("suggested_approach") or a.get("time_savings_per_week") %}
+- **{{ a.get("name", "") }}:** {% if a.get("suggested_approach") %}{{ a.get("suggested_approach") }}{% endif %}{% if a.get("time_savings_per_week") %} ({{ a.get("time_savings_per_week") }}){% endif %}
+{% endif %}
 {% endfor %}
 {% else %}
 _No automation opportunities identified._
@@ -73,7 +90,7 @@ _No automation opportunities identified._
 
 ## Recommended Next Steps
 
-{% if data.next_steps %}
+{% if data.get("next_steps") %}
 {% for step in data.next_steps %}
 {{ loop.index }}. {{ step }}
 {% endfor %}
