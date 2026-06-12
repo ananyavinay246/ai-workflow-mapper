@@ -37,7 +37,8 @@ def find_evidence(
     finding_kind: str = "bottleneck",
 ) -> tuple[list[Evidence], str | None]:
     """Return evidence items and optional warning when no quote is found."""
-    prefix = "bn" if finding_kind == "bottleneck" else "rd"
+    prefix_map = {"bottleneck": "bn", "redundancy": "rd", "automation": "ao"}
+    prefix = prefix_map.get(finding_kind, "bn")
     needles = _search_needles(label)
     if not needles:
         return [], f"No evidence needle for {finding_kind} {prefix}-{node_id} (empty label)."

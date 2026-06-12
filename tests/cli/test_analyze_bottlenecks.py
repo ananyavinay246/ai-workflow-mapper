@@ -40,6 +40,33 @@ def test_analyze_graph_returns_redundancies():
     assert payload["redundancies"][0]["id"].startswith("rd-")
 
 
+def test_analyze_graph_returns_automation_opportunities():
+    graph = load_process_graph(
+        Path(__file__).parents[2] / "fixtures" / "automation" / "synthetic_notification_task.json"
+    )
+    payload = analyze_graph(graph, analysis="automation")
+    assert len(payload["automation_opportunities"]) >= 1
+    assert payload["automation_opportunities"][0]["id"].startswith("ao-")
+
+
+def test_main_automation_flag(tmp_path: Path, capsys):
+    graph = load_process_graph(
+        Path(__file__).parents[2] / "fixtures" / "automation" / "synthetic_notification_task.json"
+    )
+    from ai_workflow_mapper.workflow.mermaid_renderer import render_flowchart
+
+    mmd = tmp_path / "flow.mmd"
+    mmd.write_text(render_flowchart(graph), encoding="utf-8")
+
+    code = main(["--automation", "--pretty", str(mmd)])
+    captured = capsys.readouterr()
+
+    assert code == 0
+    payload = json.loads(captured.out)
+    assert "automation_opportunities" in payload
+    assert "bottlenecks" not in payload
+
+
 def test_main_redundancies_flag(tmp_path: Path, capsys):
     graph = load_process_graph(
         Path(__file__).parents[2] / "fixtures" / "redundancies" / "synthetic_duplicate_data_entry.json"

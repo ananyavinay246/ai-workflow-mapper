@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from pathlib import Path
 
 from ai_workflow_mapper.platform.contracts.llm_adapter import (
     LLMAdapterContext,
@@ -14,6 +13,7 @@ from ai_workflow_mapper.platform.contracts.llm_adapter import (
     LLMAdapterRequest,
     LLMAdapterStatus,
 )
+from ai_workflow_mapper.workflow.analysis_enrichment_schema import load_enrichment_schema
 from ai_workflow_mapper.workflow.bottleneck_heuristics import (
     candidate_to_finding,
     detect_bottleneck_candidates,
@@ -33,7 +33,6 @@ from ai_workflow_mapper.workflow.normalizer import NormalizedInput
 
 _log = logging.getLogger(__name__)
 
-_SCHEMAS_DIR = Path(__file__).parents[3] / "schemas"
 _SYSTEM_CTX = LLMAdapterContext(
     actor_id="system",
     tenant_id="system",
@@ -63,21 +62,7 @@ def _build_enrichment_prompt(schema: dict) -> str:
 
 
 def _load_enrichment_schema() -> dict:
-    schema = json.loads(
-        (_SCHEMAS_DIR / "analysis_findings.schema.json").read_text(encoding="utf-8")
-    )
-    bottleneck_def = schema["$defs"]["bottleneck"]
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["bottlenecks"],
-        "properties": {
-            "bottlenecks": {
-                "type": "array",
-                "items": bottleneck_def,
-            }
-        },
-    }
+    return load_enrichment_schema(array_property="bottlenecks", finding_def="bottleneck")
 
 
 def _wrap(text: str, source: str) -> str:

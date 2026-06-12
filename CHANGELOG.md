@@ -46,3 +46,8 @@
 
 - Modified LLM prompt to consolidate steps in workflow, and improved heuristics to detect bottlenecks better.
 - Implemented Redundancy Detector (`workflow/label_similarity.py`, `workflow/redundancy_heuristics.py`, `workflow/redundancy_analyzer.py`): four spec-aligned redundancy signals after ProcessGraph build; document quote evidence; optional LLM enrichment in `thorough` mode. Populates `result.analysis.redundancies` and extends `JobOutput.citations`.
+
+6/11/2026:
+
+- Implemented Automation Opportunity Scorer (`workflow/automation_heuristics.py`, `workflow/automation_analyzer.py`): five spec-aligned automation signals with ROI ranking after ProcessGraph build; document quote evidence; optional LLM enrichment in `thorough` mode. Populates `result.analysis.automation_opportunities` and extends `JobOutput.citations`.
+- Fixed `thorough`-mode enrichment schema validation: include `$defs/evidence` in narrow output schemas so `#/$defs/evidence` resolves without a RefResolver.

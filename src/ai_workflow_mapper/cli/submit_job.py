@@ -166,6 +166,9 @@ def _print_summary(result: dict[str, Any]) -> None:
     redundancies = analysis.get("redundancies") or []
     if redundancies:
         print(f"redundancies: {len(redundancies)}", file=sys.stderr)
+    automation = analysis.get("automation_opportunities") or []
+    if automation:
+        print(f"automation_opportunities: {len(automation)}", file=sys.stderr)
     citations = result.get("citations") or []
     if citations:
         print(f"citations: {len(citations)}", file=sys.stderr)

@@ -42,6 +42,23 @@
             }
           ]
         }
+      ],
+      "automation_opportunities": [
+        {
+          "id": "ao-s3",
+          "name": "Send confirmation email to customer",
+          "effort": "Low",
+          "roi": "High (Approximately 50 minute(s) per week (daily). saved / Low effort)",
+          "priority": "1",
+          "time_savings_per_week": "Approximately 50 minute(s) per week (daily).",
+          "suggested_approach": "Automated email/Slack notification on status change",
+          "evidence": [
+            {
+              "quote": "Send confirmation email to customer",
+              "source_filename": "onboarding-sop.txt"
+            }
+          ]
+        }
       ]
     }
   },
@@ -61,6 +78,13 @@
       "trust_level": "untrusted",
       "node_id": "s1",
       "finding_id": "rd-duplicate_system_entry-s1-s2"
+    },
+    {
+      "source_filename": "onboarding-sop.txt",
+      "quote": "Send confirmation email to customer",
+      "trust_level": "untrusted",
+      "node_id": "s3",
+      "finding_id": "ao-s3"
     }
   ],
   "warnings": [],

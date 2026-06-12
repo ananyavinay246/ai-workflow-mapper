@@ -244,6 +244,47 @@ independently; empty sections are omitted from serialized output.
 
 **Standalone debug CLI:** `python -m ai_workflow_mapper.cli.analyze_bottlenecks --redundancies --pretty flowchart.mmd`
 
+### Automation Opportunity Scorer
+
+After `ProcessGraphBuilder`, when `process_graph` is non-empty, the processor runs
+`AutomationAnalyzer` (`workflow/automation_analyzer.py`) using per-step heuristics
+(`workflow/automation_heuristics.py`) and document quote matching
+(`workflow/evidence_matcher.py`).
+
+**Activation:** Same gate as other analyzers. No new `job_options` flag; `mode` controls
+LLM depth only.
+
+**Detection (deterministic):** One merged opportunity per task/decision node (`id=ao-{node_id}`):
+
+- **Rule-based:** `type=task` with validation/calculation verbs and no judgment keywords
+- **Data entry:** data-transfer verbs or tool-associated manual entry
+- **Repetitive approval:** approval/review keywords plus routine/low-judgment proxy keywords
+  (true >95% grant rate not available from graph alone)
+- **Scheduled recurring:** `frequency` metadata or schedule keywords in label
+- **Notification/status:** notify/email/alert/confirmation keywords
+
+Steps whose labels indicate existing automation (`automated`, `API`, `integration`, …) are
+skipped.
+
+**Ranking:** Opportunities are sorted by `estimated_weekly_minutes / effort_weight` and assigned
+`priority` (`"1"`, `"2"`, …) with narrative `roi` strings. `effort` is `Low`/`Medium`/`High`
+per schema enum casing.
+
+**Evidence:** `find_evidence(..., finding_kind="automation")` with `ao-{node_id}` warnings.
+Quotes are never invented.
+
+**Citations:** `finding_id=ao-{node_id}`, `node_id`, `trust_level="untrusted"`.
+
+**Empty result:** When no opportunities survive heuristics (and LLM filtering in thorough mode),
+omit `automation_opportunities` and append job warning:
+`No high-confidence automation opportunities found.`
+
+**LLM enrichment (`thorough` mode only):** Refines `suggested_approach`, `time_savings_per_week`,
+`roi`, and `effort`; may omit false positives. Ungrounded LLM quotes are dropped.
+
+**Standalone debug CLI:**
+`python -m ai_workflow_mapper.cli.analyze_bottlenecks --automation --pretty flowchart.mmd`
+
 ### API — No LLM Call When `LLM_API_KEY` Not Set
 
 `processor.py` checks `os.environ.get("LLM_API_KEY")` before constructing `LocalLLMAdapter`. When

@@ -1,4 +1,4 @@
-"""Redundancy Analyzer — graph heuristics, evidence, optional LLM enrichment."""
+"""Automation Analyzer — graph heuristics, evidence, optional LLM enrichment."""
 
 from __future__ import annotations
 
@@ -14,17 +14,17 @@ from ai_workflow_mapper.platform.contracts.llm_adapter import (
     LLMAdapterStatus,
 )
 from ai_workflow_mapper.workflow.analysis_enrichment_schema import load_enrichment_schema
-from ai_workflow_mapper.workflow.domain import Evidence, JobOptions, ProcessGraph, RedundancyFinding
+from ai_workflow_mapper.workflow.automation_heuristics import (
+    candidates_to_opportunities,
+    detect_automation_candidates,
+)
+from ai_workflow_mapper.workflow.domain import AutomationOpportunity, Evidence, JobOptions, ProcessGraph
 from ai_workflow_mapper.workflow.evidence_matcher import (
     filter_grounded_evidence,
     find_evidence,
 )
 from ai_workflow_mapper.workflow.extractor import _TRUST_CLOSE, _TRUST_OPEN
 from ai_workflow_mapper.workflow.normalizer import NormalizedInput
-from ai_workflow_mapper.workflow.redundancy_heuristics import (
-    candidate_to_finding,
-    detect_redundancy_candidates,
-)
 
 _log = logging.getLogger(__name__)
 
@@ -35,17 +35,17 @@ _SYSTEM_CTX = LLMAdapterContext(
 )
 
 _ENRICHMENT_PROMPT_TEMPLATE = """\
-You are a process improvement analyst. Refine redundancy findings using ONLY the
+You are a process automation analyst. Refine automation opportunity findings using ONLY the
 provided graph-derived findings and document excerpts.
 
-CRITICAL: If a heuristic redundancy finding is a false positive based on the documents,
-OMIT it from the final `redundancies` array entirely.
+CRITICAL: If a heuristic opportunity is a false positive or the step is already automated
+based on the documents, OMIT it from the final `automation_opportunities` array entirely.
 
 Return raw JSON only (no markdown fences) matching this schema:
 {schema_json}
 
-Preserve each valid redundancy `id` exactly. Improve description and waste_estimate.
-Only include evidence quotes that appear verbatim in the excerpts.
+Preserve each valid opportunity `id` exactly. Refine suggested_approach, time_savings_per_week,
+roi, and effort. Only include evidence quotes that appear verbatim in the excerpts.
 """
 
 
@@ -56,15 +56,18 @@ def _build_enrichment_prompt(schema: dict) -> str:
 
 
 def _load_enrichment_schema() -> dict:
-    return load_enrichment_schema(array_property="redundancies", finding_def="redundancy")
+    return load_enrichment_schema(
+        array_property="automation_opportunities",
+        finding_def="automation_opportunity",
+    )
 
 
 def _wrap(text: str, source: str) -> str:
     return f"{_TRUST_OPEN}[source: {source}]\n{text}{_TRUST_CLOSE}"
 
 
-class RedundancyAnalyzer:
-    """Detect redundancies from a ProcessGraph and attach evidence."""
+class AutomationAnalyzer:
+    """Detect automation opportunities from a ProcessGraph and attach evidence."""
 
     def __init__(self, adapter: LLMAdapterProtocol | None = None) -> None:
         self._adapter = adapter
@@ -75,40 +78,30 @@ class RedundancyAnalyzer:
         normalized: NormalizedInput,
         options: JobOptions,
         trace_id: str,
-    ) -> tuple[list[RedundancyFinding], list[dict], list[str]]:
+    ) -> tuple[list[AutomationOpportunity], list[dict], list[str]]:
         """Return (findings, citation dicts, warnings). Never raises."""
         warnings: list[str] = []
-        candidates, detect_warnings = detect_redundancy_candidates(graph)
-        warnings.extend(detect_warnings)
+        candidates = detect_automation_candidates(graph)
         if not candidates:
             return [], [], warnings
 
-        findings: list[RedundancyFinding] = []
-        for candidate in candidates:
-            finding = candidate_to_finding(candidate, graph)
-            step_evidence: list[Evidence] = []
-            ev_warnings: list[str] = []
+        findings = candidates_to_opportunities(candidates)
+        label_by_id = {c.node_id: c.label for c in candidates}
 
-            for step_id in candidate.affected_step_ids:
-                label = candidate.step_labels.get(step_id, "")
-                quote, warning = find_evidence(
-                    normalized,
-                    node_id=step_id,
-                    label=label,
-                    finding_kind="redundancy",
-                )
-                if warning:
-                    ev_warnings.append(warning.replace(f"rd-{step_id}", finding.id))
-                if quote:
-                    step_evidence.extend(quote)
-                if len(step_evidence) >= 2:
-                    break
+        enriched_findings: list[AutomationOpportunity] = []
+        for finding in findings:
+            node_id = finding.id.removeprefix("ao-")
+            evidence, ev_warning = find_evidence(
+                normalized,
+                node_id=node_id,
+                label=label_by_id.get(node_id, finding.name),
+                finding_kind="automation",
+            )
+            if ev_warning:
+                warnings.append(ev_warning.replace(f"ao-{node_id}", finding.id))
+            enriched_findings.append(finding.model_copy(update={"evidence": evidence}))
 
-            if ev_warnings:
-                warnings.extend(ev_warnings)
-
-            finding = finding.model_copy(update={"evidence": step_evidence})
-            findings.append(finding)
+        findings = enriched_findings
 
         if options.mode == "thorough" and self._adapter is not None and findings:
             findings, enrich_warnings = self._enrich_with_llm(
@@ -118,7 +111,7 @@ class RedundancyAnalyzer:
 
         citations = _findings_to_citations(findings)
         _log.info(
-            "Redundancy analysis complete [%s]: %d findings",
+            "Automation analysis complete [%s]: %d findings",
             trace_id,
             len(findings),
         )
@@ -126,16 +119,16 @@ class RedundancyAnalyzer:
 
     def _enrich_with_llm(
         self,
-        findings: list[RedundancyFinding],
+        findings: list[AutomationOpportunity],
         normalized: NormalizedInput,
         options: JobOptions,
         trace_id: str,
-    ) -> tuple[list[RedundancyFinding], list[str]]:
+    ) -> tuple[list[AutomationOpportunity], list[str]]:
         warnings: list[str] = []
         try:
             schema = _load_enrichment_schema()
         except Exception as exc:  # noqa: BLE001
-            warnings.append(f"Redundancy LLM enrichment skipped: schema load failed: {exc}")
+            warnings.append(f"Automation LLM enrichment skipped: schema load failed: {exc}")
             return findings, warnings
 
         excerpts = "\n\n".join(
@@ -148,7 +141,7 @@ class RedundancyAnalyzer:
             indent=2,
         )
         user_content = (
-            f"Current redundancy findings (heuristic):\n{payload}\n\n"
+            f"Current automation opportunities (heuristic):\n{payload}\n\n"
             f"{excerpts if excerpts else _wrap('No excerpts available.', 'documents')}"
         )
 
@@ -171,15 +164,15 @@ class RedundancyAnalyzer:
         if response.status != LLMAdapterStatus.succeeded:
             err = response.result.get("error", {})
             warnings.append(
-                f"Redundancy LLM enrichment failed "
+                f"Automation LLM enrichment failed "
                 f"({err.get('error_code', 'unknown')}): "
                 f"{err.get('message', response.result)}. Using heuristic findings."
             )
             return findings, warnings
 
-        raw_list = response.result.get("structured_object", {}).get("redundancies", [])
+        raw_list = response.result.get("structured_object", {}).get("automation_opportunities", [])
         by_id = {f.id: f for f in findings}
-        enriched: list[RedundancyFinding] = []
+        enriched: list[AutomationOpportunity] = []
 
         for item in raw_list:
             fid = item.get("id")
@@ -198,44 +191,46 @@ class RedundancyAnalyzer:
                 evidence = base.evidence
             try:
                 enriched.append(
-                    RedundancyFinding(
+                    AutomationOpportunity(
                         id=fid,
                         name=item.get("name") or base.name,
-                        description=item.get("description") or base.description,
-                        waste_estimate=item.get("waste_estimate") or base.waste_estimate,
-                        affected_steps=item.get("affected_steps") or base.affected_steps,
+                        effort=item.get("effort") or base.effort,
+                        roi=item.get("roi") or base.roi,
+                        priority=item.get("priority") or base.priority,
+                        time_savings_per_week=item.get("time_savings_per_week")
+                        or base.time_savings_per_week,
+                        suggested_approach=item.get("suggested_approach")
+                        or base.suggested_approach,
                         evidence=evidence,
                     )
                 )
             except Exception as exc:  # noqa: BLE001
-                warnings.append(f"Could not parse enriched redundancy {fid}: {exc}")
+                warnings.append(f"Could not parse enriched automation opportunity {fid}: {exc}")
                 enriched.append(base)
 
         if not enriched and findings:
-            _log.warning("LLM returned 0 redundancies. Falling back to all heuristic findings.")
+            _log.warning(
+                "LLM returned 0 automation opportunities. Falling back to heuristic findings."
+            )
             return findings, warnings
 
         return enriched, warnings
 
 
-def _findings_to_citations(findings: list[RedundancyFinding]) -> list[dict]:
+def _findings_to_citations(findings: list[AutomationOpportunity]) -> list[dict]:
     citations: list[dict] = []
     for finding in findings:
-        for idx, ev in enumerate(finding.evidence):
-            node_id = None
-            if finding.affected_steps:
-                node_id = finding.affected_steps[min(idx, len(finding.affected_steps) - 1)]
-            citations.append(_citation_dict(finding.id, node_id or "", ev))
+        node_id = finding.id.removeprefix("ao-")
+        for ev in finding.evidence:
+            citations.append(
+                {
+                    "source_filename": ev.source_filename,
+                    "quote": ev.quote,
+                    "trust_level": "untrusted",
+                    "char_start": ev.char_start,
+                    "char_end": ev.char_end,
+                    "node_id": node_id,
+                    "finding_id": finding.id,
+                }
+            )
     return citations
-
-
-def _citation_dict(finding_id: str, node_id: str, ev: Evidence) -> dict:
-    return {
-        "source_filename": ev.source_filename,
-        "quote": ev.quote,
-        "trust_level": "untrusted",
-        "char_start": ev.char_start,
-        "char_end": ev.char_end,
-        "node_id": node_id,
-        "finding_id": finding_id,
-    }

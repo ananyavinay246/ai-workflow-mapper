@@ -33,6 +33,7 @@ Thumbs.db
 *.suo
 *.user
 .claude/
+.cursor/
 
 # Generated outputs 
 inputs/

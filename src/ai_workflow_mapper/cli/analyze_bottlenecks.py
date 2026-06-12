@@ -14,6 +14,10 @@ from ai_workflow_mapper.workflow.bottleneck_heuristics import (
 )
 from ai_workflow_mapper.workflow.domain import ProcessGraph
 from ai_workflow_mapper.workflow.mermaid_parser import MermaidParseError, parse_flowchart_mermaid
+from ai_workflow_mapper.workflow.automation_heuristics import (
+    candidates_to_opportunities,
+    detect_automation_candidates,
+)
 from ai_workflow_mapper.workflow.redundancy_heuristics import (
     candidate_to_finding as redundancy_to_finding,
     detect_redundancy_candidates,
@@ -21,7 +25,7 @@ from ai_workflow_mapper.workflow.redundancy_heuristics import (
 
 _GRAPH_SUFFIXES = {".json"}
 _MERMAID_SUFFIXES = {".mmd", ".mermaid", ".txt", ".md"}
-AnalysisKind = Literal["bottlenecks", "redundancies", "all"]
+AnalysisKind = Literal["bottlenecks", "redundancies", "automation", "all"]
 
 
 def load_process_graph(path: Path) -> ProcessGraph:
@@ -102,6 +106,26 @@ def analyze_graph(
                 for c in rd_candidates
             ]
 
+    if analysis in ("automation", "all"):
+        ao_candidates = detect_automation_candidates(graph)
+        if candidates_only:
+            payload["automation_candidates"] = [
+                {
+                    "node_id": c.node_id,
+                    "label": c.label,
+                    "signals": c.signals,
+                    "tool": c.tool,
+                    "frequency": c.frequency,
+                    "duration": c.duration,
+                }
+                for c in ao_candidates
+            ]
+        else:
+            payload["automation_opportunities"] = [
+                o.model_dump(mode="json", exclude_none=True)
+                for o in candidates_to_opportunities(ao_candidates)
+            ]
+
     return payload
 
 
@@ -123,6 +147,9 @@ def _print_summary(payload: dict[str, Any], *, analysis: AnalysisKind, candidate
         if analysis in ("redundancies", "all"):
             items = payload.get("redundancy_candidates") or []
             print(f"redundancy_candidates: {len(items)}", file=sys.stderr)
+        if analysis in ("automation", "all"):
+            items = payload.get("automation_candidates") or []
+            print(f"automation_candidates: {len(items)}", file=sys.stderr)
         return
 
     if analysis in ("bottlenecks", "all"):
@@ -138,13 +165,22 @@ def _print_summary(payload: dict[str, Any], *, analysis: AnalysisKind, candidate
         print(f"redundancies: {len(items)}", file=sys.stderr)
         for item in items:
             print(f"  {item.get('id')}: {item.get('name')}", file=sys.stderr)
+    if analysis in ("automation", "all"):
+        items = payload.get("automation_opportunities") or []
+        print(f"automation_opportunities: {len(items)}", file=sys.stderr)
+        for item in items:
+            print(
+                f"  {item.get('id')}: {item.get('name')} "
+                f"(priority={item.get('priority')}, effort={item.get('effort')})",
+                file=sys.stderr,
+            )
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Run bottleneck and/or redundancy heuristics on an existing Mermaid flowchart "
-            "(.mmd) or process_graph JSON without running the full workflow."
+            "Run bottleneck, redundancy, and/or automation heuristics on an existing "
+            "Mermaid flowchart (.mmd) or process_graph JSON without running the full workflow."
         )
     )
     parser.add_argument(
@@ -158,9 +194,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Analyze redundancies only (default: bottlenecks only)",
     )
     parser.add_argument(
+        "--automation",
+        action="store_true",
+        help="Analyze automation opportunities only (default: bottlenecks only)",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
-        help="Analyze both bottlenecks and redundancies",
+        help="Analyze bottlenecks, redundancies, and automation opportunities",
     )
     parser.add_argument(
         "--candidates",
@@ -184,6 +225,8 @@ def build_parser() -> argparse.ArgumentParser:
 def _resolve_analysis(args: argparse.Namespace) -> AnalysisKind:
     if args.all:
         return "all"
+    if args.automation:
+        return "automation"
     if args.redundancies:
         return "redundancies"
     return "bottlenecks"

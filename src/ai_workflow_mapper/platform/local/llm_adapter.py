@@ -51,7 +51,7 @@ class LocalLLMAdapter:
     """Project-local implementation of the llm_adapter contract using Anthropic Claude."""
 
     MODULE_ID = "llm_adapter"
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = "claude-haiku-4-5"
     DEFAULT_TIMEOUT_S = 180.0
     DEFAULT_MAX_RETRIES = 2
     DEFAULT_COST_LIMIT_USD = 1.0

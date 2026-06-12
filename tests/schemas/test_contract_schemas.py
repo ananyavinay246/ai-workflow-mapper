@@ -114,6 +114,37 @@ def test_workflow_result_with_redundancies_validates(schema_store):
     validate_against_schema(data, "workflow_result.schema.json", schema_store)
 
 
+def test_workflow_result_with_automation_opportunities_validates(schema_store):
+    data = {
+        "normalization_summary": {
+            "normalized_documents": 1,
+            "skipped_documents": 0,
+            "skipped": [],
+            "warnings": [],
+        },
+        "analysis": {
+            "automation_opportunities": [
+                {
+                    "id": "ao-s1",
+                    "name": "Send confirmation email to customer",
+                    "effort": "Low",
+                    "roi": "High (est. 50 minutes per week saved / Low effort)",
+                    "priority": "1",
+                    "time_savings_per_week": "Approximately 50 minute(s) per week (daily).",
+                    "suggested_approach": "Automated email/Slack notification on status change.",
+                    "evidence": [
+                        {
+                            "quote": "Send confirmation email to customer",
+                            "source_filename": "sop.txt",
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+    validate_against_schema(data, "workflow_result.schema.json", schema_store)
+
+
 def test_process_extraction_empty_validates(schema_store):
     validate_against_schema(
         {"steps": [], "handoffs": [], "warnings": []},

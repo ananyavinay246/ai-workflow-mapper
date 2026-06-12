@@ -19,6 +19,7 @@ from ai_workflow_mapper.workflow.domain import (
 from ai_workflow_mapper.workflow.extractor import ProcessExtractor
 from ai_workflow_mapper.workflow.graph_builder import ProcessGraphBuilder
 from ai_workflow_mapper.workflow.normalizer import InputNormalizer
+from ai_workflow_mapper.workflow.automation_analyzer import AutomationAnalyzer
 from ai_workflow_mapper.workflow.redundancy_analyzer import RedundancyAnalyzer
 
 from .models import JobInput
@@ -122,18 +123,29 @@ def process(job_input: JobInput) -> JobProcessResult:
             job_input.options,
             trace_id=job_input.request_id,
         )
+        ao_findings, ao_citations, ao_warnings = AutomationAnalyzer(llm_adapter).analyze(
+            process_graph,
+            normalized,
+            job_input.options,
+            trace_id=job_input.request_id,
+        )
         job_warnings.extend(bn_warnings)
         job_warnings.extend(rd_warnings)
+        job_warnings.extend(ao_warnings)
 
         analysis_fields: dict[str, Any] = {}
         if bn_findings:
             analysis_fields["bottlenecks"] = bn_findings
         if rd_findings:
             analysis_fields["redundancies"] = rd_findings
+        if ao_findings:
+            analysis_fields["automation_opportunities"] = ao_findings
+        else:
+            job_warnings.append("No high-confidence automation opportunities found.")
         if analysis_fields:
             analysis = AnalysisFindings(**analysis_fields)
 
-        citations = bn_citations + rd_citations
+        citations = bn_citations + rd_citations + ao_citations
 
         diagram_artifacts, diagram_warnings = MermaidDiagramGenerator().generate(
             process_graph,

@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Validate invoice totals and calculate tax", "actor_id": "finance", "duration": "15 minutes"},
+    {"id": "s2", "type": "decision", "label": "Manager approval required?", "actor_id": "manager"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "s2"},
+    {"from": "s2", "to": "__end__"}
+  ],
+  "actors": [
+    {"id": "finance", "name": "Finance", "kind": "role"},
+    {"id": "manager", "name": "Manager", "kind": "role"}
+  ],
+  "swimlanes": []
+}

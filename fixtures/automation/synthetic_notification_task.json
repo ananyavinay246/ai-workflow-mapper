@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "__start__", "type": "start", "label": "Start"},
+    {"id": "s1", "type": "task", "label": "Send confirmation email to customer", "actor_id": "ops", "duration": "10 minutes", "frequency": "daily"},
+    {"id": "__end__", "type": "end", "label": "End"}
+  ],
+  "edges": [
+    {"from": "__start__", "to": "s1"},
+    {"from": "s1", "to": "__end__"}
+  ],
+  "actors": [
+    {"id": "ops", "name": "Operations", "kind": "role"}
+  ],
+  "swimlanes": []
+}
